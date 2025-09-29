@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 
+	"mycli/utils"
+
 	"github.com/atotto/clipboard"
 	"github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/option"
@@ -23,7 +25,6 @@ func init() {
 	promptCmd.Flags().StringVarP(&contextFile, "context", "c", "", "Path to a file containing context to be used in the prompt")
 }
 
-// promptCmd represents the prompt command
 var promptCmd = &cobra.Command{
 	Use:   "prompt",
 	Short: "Command to generate prompts",
@@ -42,7 +43,7 @@ var promptCmd = &cobra.Command{
 			return
 		}
 
-		answers := Interactive([]string{
+		answers := utils.Interactive([]string{
 			"O que você quer fazer com o prompt?",
 		})
 
