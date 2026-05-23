@@ -32,10 +32,28 @@ cd mycli
 export OPENAI_API_KEY="sua-chave-da-api-aqui"
 ```
 
-### Instalação
+### Instalação Linux
 
 ```bash
-# Compile a aplicação
+# Execute o instalador
+sudo ./install.sh
+```
+
+### Instalação Windows
+
+No PowerShell, execute:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\install.ps1
+```
+
+O instalador compila o projeto, instala o executável em `%LOCALAPPDATA%\Programs\mycli` e adiciona esse diretório ao `PATH` do usuário.
+
+### Execução manual
+
+```bash
+# Compile a aplicação manualmente
 go build -o mycli
 
 # Ou execute diretamente
