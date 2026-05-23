@@ -7,19 +7,27 @@ Uma CLI (Command Line Interface) pessoal que reúne várias ferramentas para aum
 ### `prompt` - Refinador de Prompts
 Refina e aprimora prompts usando a API da OpenAI para obter respostas mais precisas.
 
+### `photo` - Workflow de Fotografia
+Executa um menu guiado para ingestao de fotos e videos, com organizacao por metadados, estruturas de pastas customizaveis, tratamento de duplicados e relatorio final.
+
+### `photo organize` - Organizacao direta de midia
+Organiza fotos e videos por linha de comando, usando scan recursivo por padrao.
+
 ## ✨ Funcionalidades
 
 - 🤖 **Integração com APIs externas** (OpenAI)
 - 📝 **Interface interativa** para entrada de dados
 - 📋 **Integração com clipboard** para facilitar o workflow
 - 📄 **Suporte a arquivos de contexto**
+- 📷 **Workflow de fotografia** com organizacao por data, camera, tipo de midia e tratamento de duplicados
 
 ## 🚀 Como usar
 
 ### Pré-requisitos
 
 1. **Go 1.24.1** ou superior instalado
-2. **Chave da API OpenAI** configurada como variável de ambiente
+2. **Chave da API OpenAI** configurada como variável de ambiente para a ferramenta `prompt`
+3. **ExifTool** recomendado para o workflow `photo`, usado para ler data real, camera e lente
 
 ### Configuração inicial
 
@@ -71,6 +79,12 @@ go run main.go
 
 # Usar com arquivo de contexto
 ./mycli prompt --context arquivo.txt
+
+# Abrir o workflow guiado de fotografia
+./mycli photo
+
+# Organizar fotos e videos diretamente
+./mycli photo organize ./entrada ./biblioteca
 ```
 
 ### Exemplo de uso - Ferramenta `prompt`
@@ -84,6 +98,32 @@ go run main.go
 
 # 3. A ferramenta irá refinar o prompt e copiar para o clipboard
 ```
+
+### Exemplo de uso - Workflow de Fotografia
+
+```bash
+./mycli photo
+```
+
+O menu guiado pergunta origem, destino, scan recursivo, exclusoes, modo copiar/mover, estrutura de pastas, renomeacao opcional, politica de duplicados e confirmacao antes de executar.
+
+### Exemplo de uso - Organizacao direta
+
+```bash
+./mycli photo organize ./entrada ./biblioteca
+./mycli photo organize ./entrada ./biblioteca --structure camera-date --duplicates skip
+./mycli photo organize ./entrada ./biblioteca --no-recursive --exclude exports
+```
+
+O comando usa `exiftool` para ler data, camera e lente. Sem `exiftool`, o modo interativo pergunta se deve continuar com fallback limitado; o modo direto exige `--allow-fallback`.
+
+Estruturas de pasta podem usar presets ou templates:
+
+```bash
+./mycli photo organize ./entrada ./biblioteca --structure "{camera}/{year}/{month}/{day}/{type}"
+```
+
+Tokens iniciais: `{year}`, `{month}`, `{day}`, `{date}`, `{time}`, `{camera}`, `{lens}`, `{type}`, `{extension}`.
 
 ## 🛠️ Desenvolvimento
 
@@ -111,7 +151,9 @@ mycli/
 ├── cmd/
 │   ├── root.go         # Comando raiz do Cobra
 │   ├── prompt.go       # Comando principal de refinamento
+│   ├── photo.go        # Workflow de fotografia
 │   └── interactive.go  # Funções de interação com usuário
+├── internal/photo/     # Motor de ingestao, metadados, templates e relatorios
 ├── go.mod              # Dependências do Go
 └── README.md           # Este arquivo
 ```
@@ -121,6 +163,7 @@ mycli/
 - **Cobra**: Framework para CLIs em Go
 - **OpenAI Go Client**: Integração com APIs externas
 - **Clipboard**: Manipulação da área de transferência
+- **ExifTool**: Leitura de metadados de fotos, RAWs e videos para o workflow `photo`
 
 ## ⚙️ Configuração
 
