@@ -1,0 +1,83 @@
+package photo
+
+import (
+	"fmt"
+	"path/filepath"
+)
+
+func BuildPlan(files []EnrichedFile, duplicates map[string]bool, options Options) (Plan, error) {
+	structure, err := ResolveStructure(options.Structure)
+	if err != nil {
+		return Plan{}, err
+	}
+	if options.Duplicates == "" {
+		options.Duplicates = DuplicateSkip
+	}
+
+	planned := Plan{Options: options}
+	usedDestinations := map[string]int{}
+	for index, file := range files {
+		isDuplicate := duplicates[file.File.SourcePath]
+		action := PlannedAction{
+			Kind:         ActionCopy,
+			SourcePath:   file.File.SourcePath,
+			MediaType:    file.File.Type,
+			Duplicate:    isDuplicate,
+			UsedFallback: file.Metadata.UsedFallback,
+		}
+		if options.Move {
+			action.Kind = ActionMove
+		}
+
+		destinationRoot := options.Destination
+		if isDuplicate {
+			switch options.Duplicates {
+			case DuplicateSkip:
+				action.Kind = ActionSkip
+				planned.Actions = append(planned.Actions, action)
+				continue
+			case DuplicateSeparate:
+				destinationRoot = filepath.Join(options.Destination, "duplicates")
+			case DuplicateSuffix:
+			default:
+				return Plan{}, fmt.Errorf("invalid duplicate policy %q", options.Duplicates)
+			}
+		}
+
+		relativeDir, err := RenderTemplate(structure, file, index+1)
+		if err != nil {
+			return Plan{}, err
+		}
+
+		fileName := filepath.Base(file.File.SourcePath)
+		if options.Rename != "" {
+			fileName, err = RenderTemplate(options.Rename, file, index+1)
+			if err != nil {
+				return Plan{}, err
+			}
+		}
+
+		destination := filepath.Join(destinationRoot, filepath.FromSlash(relativeDir), fileName)
+		if isDuplicate && options.Duplicates == DuplicateSuffix {
+			destination = addSuffixBeforeExtension(destination, "duplicate")
+		}
+		action.DestPath = uniquePlannedDestination(destination, usedDestinations)
+		planned.Actions = append(planned.Actions, action)
+	}
+	return planned, nil
+}
+
+func uniquePlannedDestination(path string, used map[string]int) string {
+	if used[path] == 0 {
+		used[path] = 1
+		return path
+	}
+	used[path]++
+	return addSuffixBeforeExtension(path, fmt.Sprintf("%d", used[path]))
+}
+
+func addSuffixBeforeExtension(path string, suffix string) string {
+	ext := filepath.Ext(path)
+	base := path[:len(path)-len(ext)]
+	return base + "_" + suffix + ext
+}
