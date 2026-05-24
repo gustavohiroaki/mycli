@@ -61,6 +61,31 @@ function Test-Go {
     }
 }
 
+function Install-ExifTool {
+    $existing = Get-Command exiftool -ErrorAction SilentlyContinue
+    if ($existing) {
+        $version = & exiftool -ver
+        Write-Info "ExifTool encontrado: $version"
+        return
+    }
+
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if (-not $winget) {
+        Write-ErrorAndExit "ExifTool nao encontrado e winget nao esta disponivel. Instale ExifTool manualmente ou instale App Installer/winget."
+    }
+
+    Write-Info "ExifTool nao encontrado. Instalando via winget..."
+    & winget install --id OliverBetz.ExifTool --exact --silent --accept-package-agreements --accept-source-agreements
+
+    $installed = Get-Command exiftool -ErrorAction SilentlyContinue
+    if (-not $installed) {
+        Write-ErrorAndExit "Instalacao do ExifTool falhou ou exiftool nao entrou no PATH. Abra um novo terminal e verifique."
+    }
+
+    $version = & exiftool -ver
+    Write-Info "ExifTool instalado: $version"
+}
+
 function Build-Binary {
     Write-Info "Compilando $BinaryName..."
     Push-Location $PSScriptRoot
@@ -131,6 +156,7 @@ function Main {
     Write-Host "========================================="
 
     Test-Go
+    Install-ExifTool
     Build-Binary
     Install-Binary
     Add-ToUserPath

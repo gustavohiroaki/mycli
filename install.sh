@@ -41,6 +41,23 @@ check_go() {
     fi
 }
 
+install_exiftool() {
+    if command -v exiftool &>/dev/null; then
+        info "ExifTool encontrado: $(exiftool -ver)"
+        return
+    fi
+
+    info "ExifTool não encontrado. Instalando via apt..."
+    apt-get update -qq
+    apt-get install -y libimage-exiftool-perl
+
+    if command -v exiftool &>/dev/null; then
+        info "ExifTool instalado: $(exiftool -ver)"
+    else
+        error "Instalação do ExifTool falhou."
+    fi
+}
+
 build() {
     info "Compilando $BINARY_NAME..."
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -79,6 +96,7 @@ main() {
 
     check_root
     check_go
+    install_exiftool
     build
     install_binary
     cleanup
