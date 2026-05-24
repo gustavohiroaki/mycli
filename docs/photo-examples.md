@@ -140,9 +140,9 @@ Sem `--rename`, o nome original é preservado.
 O modo `grouped` cria nomes parecidos para fotos relacionadas:
 
 ```text
-2026-05-24_14-32-10_canon-eos-r6_001.jpg
-2026-05-24_14-32-10_canon-eos-r6_002.jpg
-2026-05-24_14-32-10_canon-eos-r6_003.jpg
+2026-05-24_14-32-10_canon-eos-r6_b001.jpg
+2026-05-24_14-32-10_canon-eos-r6_b001_1.jpg
+2026-05-24_14-32-10_canon-eos-r6_b001_2.jpg
 ```
 
 Para detectar bursts por tempo:

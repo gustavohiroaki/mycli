@@ -2,7 +2,9 @@ package photo
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -62,6 +64,7 @@ func AssignGroupedNames(files []EnrichedFile, grouping GroupingResult) map[strin
 
 	buckets := map[string][]EnrichedFile{}
 	groupBases := map[string]EnrichedFile{}
+	groupLabels := map[string]string{}
 	for _, group := range append(grouping.BurstGroups, grouping.SimilarGroups...) {
 		groupFiles := filesForGroup(group, filesByPath)
 		if len(groupFiles) == 0 {
@@ -69,6 +72,9 @@ func AssignGroupedNames(files []EnrichedFile, grouping GroupingResult) map[strin
 		}
 		sortEnriched(groupFiles)
 		groupBases[group.ID] = groupFiles[0]
+		if group.Type == GroupBurst {
+			groupLabels[group.ID] = burstLabel(group.ID)
+		}
 	}
 
 	for _, file := range files {
@@ -94,10 +100,19 @@ func AssignGroupedNames(files []EnrichedFile, grouping GroupingResult) map[strin
 			baseFile = groupedBase
 		}
 		base := groupedBaseName(baseFile)
+		if label := groupLabels[key]; label != "" {
+			base += "_" + label
+		}
+		duplicateTimestampCounts := timestampCounts(bucket)
+		numericSuffix := 0
 		for index, file := range bucket {
 			name := base + strings.ToLower(file.File.Extension)
-			if len(bucket) > 1 {
-				name = fmt.Sprintf("%s_%03d%s", base, index+1, strings.ToLower(file.File.Extension))
+			timestamp := file.Metadata.Date.Format("2006-01-02 15:04:05")
+			if duplicateTimestampCounts[timestamp] > 1 {
+				name = base + "_" + shortHash(file) + strings.ToLower(file.File.Extension)
+			} else if index > 0 {
+				numericSuffix++
+				name = fmt.Sprintf("%s_%d%s", base, numericSuffix, strings.ToLower(file.File.Extension))
 			}
 			names[file.File.SourcePath] = name
 		}
@@ -154,6 +169,9 @@ func sortEnriched(files []EnrichedFile) {
 		if !left.Metadata.Date.Equal(right.Metadata.Date) {
 			return left.Metadata.Date.Before(right.Metadata.Date)
 		}
+		if left.Hash != right.Hash {
+			return left.Hash < right.Hash
+		}
 		return left.File.SourcePath < right.File.SourcePath
 	})
 }
@@ -173,4 +191,32 @@ func groupedBaseName(file EnrichedFile) string {
 		file.Metadata.Date.Format("15-04-05"),
 		sanitizeTokenValue(defaultString(file.Metadata.Camera, "unknown-camera")),
 	}, "_")
+}
+
+func timestampCounts(files []EnrichedFile) map[string]int {
+	counts := map[string]int{}
+	for _, file := range files {
+		counts[file.Metadata.Date.Format("2006-01-02 15:04:05")]++
+	}
+	return counts
+}
+
+func shortHash(file EnrichedFile) string {
+	hash := strings.TrimSpace(file.Hash)
+	if len(hash) >= 4 {
+		return hash[:4]
+	}
+	fallback := sanitizeTokenValue(strings.TrimSuffix(filepath.Base(file.File.SourcePath), filepath.Ext(file.File.SourcePath)))
+	if len(fallback) >= 4 {
+		return fallback[:4]
+	}
+	return fmt.Sprintf("%04d", len(file.File.SourcePath))
+}
+
+func burstLabel(groupID string) string {
+	value, err := strconv.Atoi(strings.TrimPrefix(groupID, "burst-"))
+	if err != nil {
+		return "b000"
+	}
+	return fmt.Sprintf("b%03d", value)
 }
