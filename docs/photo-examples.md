@@ -21,7 +21,7 @@ Esse modo nao pergunta origem e destino novamente. Ele usa os caminhos informado
 Quando origem e destino ja sao informados, as respostas padrao ficam otimizadas para workflow fotografico:
 
 ```text
-structure: {year}/{year}-{month}/{year}-{month}-{day}/{camera}/{type}
+structure: {type}/{year}/{year}-{month}/{year}-{month}-{day}/{camera}
 rename: grouped
 burst-window: 2s
 similarity-threshold: 8

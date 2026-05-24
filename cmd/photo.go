@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	guidedPathStructure = "{year}/{year}-{month}/{year}-{month}-{day}/{camera}/{type}"
+	guidedPathStructure = "{type}/{year}/{year}-{month}/{year}-{month}-{day}/{camera}"
 
 	photoOptions = photo.Options{
 		Recursive:  true,
