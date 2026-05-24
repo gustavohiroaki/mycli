@@ -125,6 +125,8 @@ Estruturas de pasta podem usar presets ou templates:
 
 Tokens iniciais: `{year}`, `{month}`, `{day}`, `{date}`, `{time}`, `{camera}`, `{lens}`, `{type}`, `{extension}`.
 
+Veja mais cenários em [docs/photo-examples.md](docs/photo-examples.md).
+
 ## 🛠️ Desenvolvimento
 
 ### Comandos úteis
@@ -153,6 +155,8 @@ mycli/
 │   ├── prompt.go       # Comando principal de refinamento
 │   ├── photo.go        # Workflow de fotografia
 │   └── interactive.go  # Funções de interação com usuário
+├── docs/
+│   └── photo-examples.md # Exemplos de uso do comando photo
 ├── internal/photo/     # Motor de ingestao, metadados, templates e relatorios
 ├── go.mod              # Dependências do Go
 └── README.md           # Este arquivo
