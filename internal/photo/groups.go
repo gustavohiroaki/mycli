@@ -171,5 +171,6 @@ func groupedBaseName(file EnrichedFile) string {
 	return strings.Join([]string{
 		file.Metadata.Date.Format("2006-01-02"),
 		file.Metadata.Date.Format("15-04-05"),
+		sanitizeTokenValue(defaultString(file.Metadata.Camera, "unknown-camera")),
 	}, "_")
 }
