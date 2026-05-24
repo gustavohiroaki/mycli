@@ -8,7 +8,7 @@ Uma CLI (Command Line Interface) pessoal que reúne várias ferramentas para aum
 Refina e aprimora prompts usando a API da OpenAI para obter respostas mais precisas.
 
 ### `photo` - Workflow de Fotografia
-Executa um menu guiado para ingestao de fotos e videos, com organizacao por metadados, estruturas de pastas customizaveis, tratamento de duplicados e relatorio final.
+Executa um menu guiado para ingestao de fotos e videos, com organizacao por metadados, estruturas de pastas customizaveis, tratamento de duplicados, agrupamento por burst/similaridade e relatorio final.
 
 ### `photo organize` - Organizacao direta de midia
 Organiza fotos e videos por linha de comando, usando scan recursivo por padrao.
@@ -22,7 +22,7 @@ Descompacta arquivos `.zip`, `.tar`, `.tar.gz` e `.tgz`, verifica os arquivos ex
 - 📝 **Interface interativa** para entrada de dados
 - 📋 **Integração com clipboard** para facilitar o workflow
 - 📄 **Suporte a arquivos de contexto**
-- 📷 **Workflow de fotografia** com organizacao por data, camera, tipo de midia e tratamento de duplicados
+- 📷 **Workflow de fotografia** com organizacao por data, camera, tipo de midia, tratamento de duplicados e agrupamento por burst/similaridade
 - 📦 **Descompactacao segura** em lote com verificacao antes de apagar originais
 
 ## 🚀 Como usar
@@ -123,6 +123,7 @@ O menu guiado pergunta origem, destino, scan recursivo, exclusoes, modo copiar/m
 ./mycli photo organize ./entrada ./biblioteca
 ./mycli photo organize ./entrada ./biblioteca --structure camera-date --duplicates skip
 ./mycli photo organize ./entrada ./biblioteca --no-recursive --exclude exports
+./mycli photo organize ./entrada ./biblioteca --rename grouped --burst-window 2s --similarity-threshold 8
 ```
 
 O comando usa `exiftool` para ler data, camera e lente. Sem `exiftool`, o modo interativo pergunta se deve continuar com fallback limitado; o modo direto exige `--allow-fallback`.
@@ -134,6 +135,8 @@ Estruturas de pasta podem usar presets ou templates:
 ```
 
 Tokens iniciais: `{year}`, `{month}`, `{day}`, `{date}`, `{time}`, `{camera}`, `{lens}`, `{type}`, `{extension}`.
+
+Use `--rename grouped` para dar nomes parecidos a fotos relacionadas. Combine com `--burst-window 2s` para agrupar sequencias por tempo e com `--similarity-threshold 8` para agrupar imagens visualmente parecidas quando o formato puder ser decodificado. Esses grupos afetam nomes e relatorios; nao criam pastas extras nem apagam fotos similares.
 
 Veja mais cenários em [docs/photo-examples.md](docs/photo-examples.md).
 

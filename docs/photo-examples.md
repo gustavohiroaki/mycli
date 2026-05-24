@@ -115,6 +115,43 @@ Exemplo de nome gerado:
 
 Sem `--rename`, o nome original é preservado.
 
+## Renomear por Grupos, Bursts e Similaridade
+
+```bash
+./mycli photo organize ./entrada ./biblioteca --rename grouped
+```
+
+O modo `grouped` cria nomes parecidos para fotos relacionadas:
+
+```text
+2026-05-24_14-32-10_canon-eos-r6.jpg
+2026-05-24_14-32-10_canon-eos-r6_1.jpg
+2026-05-24_14-32-10_canon-eos-r6_2.jpg
+```
+
+Para detectar bursts por tempo:
+
+```bash
+./mycli photo organize ./entrada ./biblioteca --rename grouped --burst-window 2s
+```
+
+Para detectar imagens visualmente parecidas em formatos decodificaveis, como JPG e PNG:
+
+```bash
+./mycli photo organize ./entrada ./biblioteca --rename grouped --similarity-threshold 8
+```
+
+Modo hibrido:
+
+```bash
+./mycli photo organize ./entrada ./biblioteca \
+  --rename grouped \
+  --burst-window 2s \
+  --similarity-threshold 8
+```
+
+O agrupamento altera nomes e relatorios, mas nao cria pastas extras e nao apaga fotos parecidas.
+
 ## Tratar Duplicados
 
 Pular duplicados:
@@ -160,10 +197,12 @@ photo-ingest-report.json
 ```bash
 ./mycli photo organize /media/cartao/DCIM ~/Fotos/Biblioteca \
   --structure "{camera}/{year}/{month}/{day}/{type}" \
-  --rename "{date}_{time}_{camera}_{seq}{ext}" \
+  --rename grouped \
+  --burst-window 2s \
+  --similarity-threshold 8 \
   --duplicates separate \
   --exclude exports \
   --report json
 ```
 
-Esse exemplo organiza por câmera/data/tipo, renomeia arquivos, separa duplicados, ignora `exports` e gera relatório JSON.
+Esse exemplo organiza por câmera/data/tipo, renomeia por grupos, detecta bursts e imagens similares, separa duplicados, ignora `exports` e gera relatório JSON.
