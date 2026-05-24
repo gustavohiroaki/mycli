@@ -22,8 +22,19 @@ func PlanIngest(options Options, provider MetadataProvider) (Plan, Summary, erro
 		enriched = append(enriched, EnrichedFile{File: file, Metadata: metadata, Hash: hash})
 	}
 
+	visualSkipped := 0
+	if options.SimilarityEnabled {
+		enriched, visualSkipped = EnrichVisualHashes(enriched)
+	}
+	burstGroups := DetectBurstGroups(enriched, options.BurstWindow)
+	var similarGroups []FileGroup
+	if options.SimilarityEnabled {
+		similarGroups = DetectSimilarGroups(enriched, options.SimilarityThreshold)
+	}
+	grouping := MergeGrouping(enriched, burstGroups, similarGroups, visualSkipped, options)
+
 	duplicates := MarkDuplicates(enriched)
-	plan, err := BuildPlan(enriched, duplicates, options)
+	plan, err := BuildPlanWithGrouping(enriched, duplicates, options, grouping)
 	if err != nil {
 		return Plan{}, Summary{}, err
 	}
@@ -54,7 +65,22 @@ func SummarizePlan(plan Plan) Summary {
 			summary.Skipped++
 		}
 	}
+	summary.BurstGroups = len(plan.Grouping.BurstGroups)
+	summary.LargestBurst = largestGroupSize(plan.Grouping.BurstGroups)
+	summary.SimilarGroups = len(plan.Grouping.SimilarGroups)
+	summary.LargestSimilar = largestGroupSize(plan.Grouping.SimilarGroups)
+	summary.VisualSimilaritySkipped = plan.Grouping.VisualSimilaritySkipped
 	return summary
+}
+
+func largestGroupSize(groups []FileGroup) int {
+	largest := 0
+	for _, group := range groups {
+		if len(group.Files) > largest {
+			largest = len(group.Files)
+		}
+	}
+	return largest
 }
 
 func normalizeOptions(options *Options) {

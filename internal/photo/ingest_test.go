@@ -42,3 +42,43 @@ func TestPlanIngestScansMetadataHashesAndPlans(t *testing.T) {
 		t.Fatalf("DestPath = %q, want %q", plan.Actions[0].DestPath, want)
 	}
 }
+
+func TestPlanIngestAddsBurstGrouping(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	dest := filepath.Join(root, "dest")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	a := filepath.Join(source, "a_20260524_100000.jpg")
+	b := filepath.Join(source, "b_20260524_100001.jpg")
+	if err := os.WriteFile(a, []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(b, []byte("b"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	plan, summary, err := PlanIngest(Options{
+		Source:      source,
+		Destination: dest,
+		Recursive:   true,
+		Structure:   DefaultStructure,
+		Rename:      "grouped",
+		Duplicates:  DuplicateSkip,
+		Report:      ReportNone,
+		BurstWindow: 2 * time.Second,
+	}, fakeMetadataProvider{metadata: Metadata{
+		Date:   time.Date(2026, 5, 24, 10, 0, 0, 0, time.Local),
+		Camera: "Canon R6",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.BurstGroups != 1 {
+		t.Fatalf("BurstGroups = %d, want 1", summary.BurstGroups)
+	}
+	if plan.Actions[0].DestPath == "" || plan.Actions[1].DestPath == "" {
+		t.Fatalf("missing destinations: %+v", plan.Actions)
+	}
+}

@@ -95,3 +95,41 @@ func TestBuildPlanSeparatesDuplicates(t *testing.T) {
 		t.Fatalf("DestPath = %q, want %q", plan.Actions[0].DestPath, want)
 	}
 }
+
+func TestBuildPlanWithGroupingUsesGroupedRename(t *testing.T) {
+	files := []EnrichedFile{
+		{
+			File:     MediaFile{SourcePath: "/src/a.jpg", Type: MediaTypePhoto, Extension: ".jpg"},
+			Metadata: Metadata{Date: time.Date(2026, 5, 24, 10, 0, 0, 0, time.Local), Camera: "Canon R6"},
+			Hash:     "aaaa",
+		},
+		{
+			File:     MediaFile{SourcePath: "/src/b.jpg", Type: MediaTypePhoto, Extension: ".jpg"},
+			Metadata: Metadata{Date: time.Date(2026, 5, 24, 10, 0, 1, 0, time.Local), Camera: "Canon R6"},
+			Hash:     "bbbb",
+		},
+	}
+	grouping := GroupingResult{
+		BurstGroups: []FileGroup{{ID: "burst-001", Type: GroupBurst, Files: []string{"/src/a.jpg", "/src/b.jpg"}}},
+		PreferredGroupByFile: map[string]string{
+			"/src/a.jpg": "burst-001",
+			"/src/b.jpg": "burst-001",
+		},
+	}
+
+	plan, err := BuildPlanWithGrouping(files, map[string]bool{}, Options{
+		Destination: "/dest",
+		Structure:   DefaultStructure,
+		Rename:      "grouped",
+		Duplicates:  DuplicateSkip,
+	}, grouping)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(plan.Actions[0].DestPath) != "2026-05-24_10-00-00_canon-r6.jpg" {
+		t.Fatalf("first DestPath = %q", plan.Actions[0].DestPath)
+	}
+	if filepath.Base(plan.Actions[1].DestPath) != "2026-05-24_10-00-00_canon-r6_1.jpg" {
+		t.Fatalf("second DestPath = %q", plan.Actions[1].DestPath)
+	}
+}

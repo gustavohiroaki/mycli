@@ -6,6 +6,10 @@ import (
 )
 
 func BuildPlan(files []EnrichedFile, duplicates map[string]bool, options Options) (Plan, error) {
+	return BuildPlanWithGrouping(files, duplicates, options, GroupingResult{})
+}
+
+func BuildPlanWithGrouping(files []EnrichedFile, duplicates map[string]bool, options Options, grouping GroupingResult) (Plan, error) {
 	structure, err := ResolveStructure(options.Structure)
 	if err != nil {
 		return Plan{}, err
@@ -14,8 +18,12 @@ func BuildPlan(files []EnrichedFile, duplicates map[string]bool, options Options
 		options.Duplicates = DuplicateSkip
 	}
 
-	planned := Plan{Options: options}
+	planned := Plan{Options: options, Grouping: grouping}
 	usedDestinations := map[string]int{}
+	groupedNames := map[string]string{}
+	if options.Rename == "grouped" {
+		groupedNames = AssignGroupedNames(files, grouping)
+	}
 	for index, file := range files {
 		isDuplicate := duplicates[file.File.SourcePath]
 		action := PlannedAction{
@@ -50,7 +58,9 @@ func BuildPlan(files []EnrichedFile, duplicates map[string]bool, options Options
 		}
 
 		fileName := filepath.Base(file.File.SourcePath)
-		if options.Rename != "" {
+		if options.Rename == "grouped" {
+			fileName = groupedNames[file.File.SourcePath]
+		} else if options.Rename != "" {
 			fileName, err = RenderTemplate(options.Rename, file, index+1)
 			if err != nil {
 				return Plan{}, err
