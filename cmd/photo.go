@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"mycli/internal/photo"
@@ -70,6 +71,7 @@ func registerPhotoOrganizeFlags(cmd *cobra.Command) {
 	cmd.Flags().Var((*reportFormatValue)(&photoOptions.Report), "report", "Report format: txt, json, none")
 	cmd.Flags().DurationVar(&photoOptions.BurstWindow, "burst-window", 0, "Detect bursts using a duration window such as 2s")
 	cmd.Flags().IntVar(&photoOptions.SimilarityThreshold, "similarity-threshold", 8, "Detect visually similar photos with this perceptual hash distance")
+	cmd.Flags().BoolVar(&photoOptions.FullPerformance, "fullperformance", false, "Use parallel workers for faster planning and execution")
 }
 
 func runPhotoOrganize(cmd *cobra.Command, args []string) error {
@@ -276,9 +278,13 @@ func printPhotoProgress(done int, total int, action photo.PlannedAction) {
 }
 
 func newPhotoPlanProgressPrinter() photo.PlanProgressFunc {
+	var mu sync.Mutex
 	lastStage := ""
 	lastPercent := -1
 	return func(stage string, done int, total int, path string) {
+		mu.Lock()
+		defer mu.Unlock()
+
 		if total <= 0 {
 			if stage != lastStage {
 				fmt.Printf("Planning: %s\n", stage)

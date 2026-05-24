@@ -126,6 +126,7 @@ O menu guiado pergunta origem, destino, scan recursivo, exclusoes, modo copiar/m
 ./mycli photo organize ./entrada ./biblioteca --structure camera-date --duplicates skip
 ./mycli photo organize ./entrada ./biblioteca --no-recursive --exclude exports
 ./mycli photo organize ./entrada ./biblioteca --rename grouped --burst-window 2s --similarity-threshold 8
+./mycli photo organize ./entrada ./biblioteca --fullperformance
 ```
 
 O comando usa `exiftool` para ler data, camera e lente. Sem `exiftool`, o modo interativo pergunta se deve continuar com fallback limitado; o modo direto exige `--allow-fallback`.
@@ -139,6 +140,8 @@ Estruturas de pasta podem usar presets ou templates:
 Tokens iniciais: `{year}`, `{month}`, `{day}`, `{date}`, `{time}`, `{camera}`, `{lens}`, `{type}`, `{extension}`.
 
 Use `--rename grouped` para dar nomes parecidos a fotos relacionadas. Combine com `--burst-window 2s` para agrupar sequencias por tempo e com `--similarity-threshold 8` para agrupar imagens visualmente parecidas quando o formato puder ser decodificado. Esses grupos afetam nomes e relatorios; nao criam pastas extras nem apagam fotos similares.
+
+Use `--fullperformance` para executar leitura de metadados, hashes e copia/movimento em paralelo usando os CPUs disponiveis. A ordem dos logs pode refletir a ordem de conclusao dos arquivos.
 
 Veja mais cenários em [docs/photo-examples.md](docs/photo-examples.md).
 

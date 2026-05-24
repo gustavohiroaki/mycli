@@ -82,3 +82,42 @@ func TestPlanIngestAddsBurstGrouping(t *testing.T) {
 		t.Fatalf("missing destinations: %+v", plan.Actions)
 	}
 }
+
+func TestPlanIngestFullPerformanceReadsMetadataConcurrently(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	dest := filepath.Join(root, "dest")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"a.jpg", "b.jpg", "c.jpg", "d.jpg"} {
+		if err := os.WriteFile(filepath.Join(source, name), []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	provider := &blockingMetadataProvider{
+		metadata: Metadata{
+			Date:   time.Date(2026, 5, 24, 10, 0, 0, 0, time.Local),
+			Camera: "Canon R6",
+		},
+		blockAt: 2,
+	}
+	defer provider.releaseAll()
+
+	_, _, err := PlanIngest(Options{
+		Source:          source,
+		Destination:     dest,
+		Recursive:       true,
+		Structure:       DefaultStructure,
+		Duplicates:      DuplicateSkip,
+		Report:          ReportNone,
+		FullPerformance: true,
+	}, provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider.maxActive < 2 {
+		t.Fatalf("maxActive = %d, want concurrent metadata reads", provider.maxActive)
+	}
+}

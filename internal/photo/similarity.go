@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 )
 
 func EnrichVisualHashes(files []EnrichedFile) ([]EnrichedFile, int) {
@@ -16,28 +17,75 @@ func EnrichVisualHashes(files []EnrichedFile) ([]EnrichedFile, int) {
 }
 
 func EnrichVisualHashesWithProgress(files []EnrichedFile, progress func(done int, total int, path string)) ([]EnrichedFile, int) {
+	return EnrichVisualHashesWithOptions(files, 1, progress)
+}
+
+func EnrichVisualHashesWithOptions(files []EnrichedFile, workers int, progress func(done int, total int, path string)) ([]EnrichedFile, int) {
+	if workers <= 1 || len(files) < 2 {
+		return enrichVisualHashesSequential(files, progress)
+	}
+
+	enriched := make([]EnrichedFile, len(files))
+	copy(enriched, files)
+	skipped := 0
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	completed := 0
+
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				file := enriched[index]
+				skippedFile := applyVisualHash(&enriched[index])
+				mu.Lock()
+				if skippedFile {
+					skipped++
+				}
+				completed++
+				reportVisualHashProgress(progress, completed, len(enriched), file.File.SourcePath)
+				mu.Unlock()
+			}
+		}()
+	}
+	for index := range enriched {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+
+	return enriched, skipped
+}
+
+func enrichVisualHashesSequential(files []EnrichedFile, progress func(done int, total int, path string)) ([]EnrichedFile, int) {
 	enriched := make([]EnrichedFile, len(files))
 	copy(enriched, files)
 	skipped := 0
 
-	for i, file := range enriched {
-		if file.File.Type != MediaTypePhoto || !isVisualHashExtension(file.File.Extension) {
-			reportVisualHashProgress(progress, i+1, len(enriched), file.File.SourcePath)
-			continue
-		}
-		hash, ok, err := VisualHashFile(file.File.SourcePath)
-		if err != nil || !ok {
-			enriched[i].VisualHashSkipped = true
+	for i := range enriched {
+		if applyVisualHash(&enriched[i]) {
 			skipped++
-			reportVisualHashProgress(progress, i+1, len(enriched), file.File.SourcePath)
-			continue
 		}
-		enriched[i].VisualHash = hash
-		enriched[i].HasVisualHash = true
-		reportVisualHashProgress(progress, i+1, len(enriched), file.File.SourcePath)
+		reportVisualHashProgress(progress, i+1, len(enriched), enriched[i].File.SourcePath)
 	}
 
 	return enriched, skipped
+}
+
+func applyVisualHash(file *EnrichedFile) bool {
+	if file.File.Type != MediaTypePhoto || !isVisualHashExtension(file.File.Extension) {
+		return false
+	}
+	hash, ok, err := VisualHashFile(file.File.SourcePath)
+	if err != nil || !ok {
+		file.VisualHashSkipped = true
+		return true
+	}
+	file.VisualHash = hash
+	file.HasVisualHash = true
+	return false
 }
 
 func reportVisualHashProgress(progress func(done int, total int, path string), done int, total int, path string) {

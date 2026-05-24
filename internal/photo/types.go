@@ -40,6 +40,7 @@ type Options struct {
 	BurstWindow         time.Duration
 	SimilarityEnabled   bool
 	SimilarityThreshold int
+	FullPerformance     bool
 }
 
 type MediaFile struct {

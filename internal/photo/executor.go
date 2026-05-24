@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,13 @@ func ExecutePlan(plan Plan) Summary {
 }
 
 func ExecutePlanWithProgress(plan Plan, progress ProgressFunc) Summary {
+	if plan.Options.FullPerformance {
+		return executePlanParallel(plan, progress, photoWorkerCount(plan.Options))
+	}
+	return executePlanSequential(plan, progress)
+}
+
+func executePlanSequential(plan Plan, progress ProgressFunc) Summary {
 	summary := Summary{Media: len(plan.Actions)}
 	total := len(plan.Actions)
 	for index, action := range plan.Actions {
@@ -48,6 +56,76 @@ func ExecutePlanWithProgress(plan Plan, progress ProgressFunc) Summary {
 		reportProgress(progress, index+1, total, action)
 	}
 	return summary
+}
+
+func executePlanParallel(plan Plan, progress ProgressFunc, workers int) Summary {
+	if workers <= 1 || len(plan.Actions) < 2 {
+		return executePlanSequential(plan, progress)
+	}
+
+	type actionResult struct {
+		action PlannedAction
+		failed bool
+	}
+
+	jobs := make(chan int)
+	results := make(chan actionResult, len(plan.Actions))
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				action := plan.Actions[index]
+				results <- actionResult{
+					action: action,
+					failed: executeOneAction(action),
+				}
+			}
+		}()
+	}
+	for index := range plan.Actions {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+	close(results)
+
+	summary := Summary{Media: len(plan.Actions)}
+	completed := 0
+	for result := range results {
+		completed++
+		countAction(result.action, &summary)
+		switch {
+		case result.action.Kind == ActionSkip:
+			summary.Skipped++
+		case result.failed:
+			summary.Failed++
+		case result.action.Kind == ActionMove:
+			summary.Moved++
+		default:
+			summary.Copied++
+		}
+		reportProgress(progress, completed, len(plan.Actions), result.action)
+	}
+	return summary
+}
+
+func executeOneAction(action PlannedAction) bool {
+	if action.Kind == ActionSkip {
+		return false
+	}
+	if err := os.MkdirAll(filepath.Dir(action.DestPath), 0o755); err != nil {
+		return true
+	}
+
+	var err error
+	if action.Kind == ActionMove {
+		err = moveFile(action.SourcePath, action.DestPath)
+	} else {
+		err = copyFile(action.SourcePath, action.DestPath)
+	}
+	return err != nil
 }
 
 func reportProgress(progress ProgressFunc, done int, total int, action PlannedAction) {

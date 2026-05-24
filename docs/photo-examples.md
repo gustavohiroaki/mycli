@@ -58,6 +58,14 @@ Use com cuidado: os arquivos saem da origem depois de copiados para o destino.
 
 Processa apenas arquivos diretamente dentro de `./entrada`.
 
+## Rodar com Mais Performance
+
+```bash
+./mycli photo organize ./entrada ./biblioteca --fullperformance
+```
+
+Usa workers paralelos para acelerar leitura de metadados, calculo de hashes e copia/movimento. A ordem dos logs pode variar porque os arquivos terminam em paralelo.
+
 ## Ignorar Pastas ou Padrões
 
 ```bash

@@ -1,5 +1,10 @@
 package photo
 
+import (
+	"runtime"
+	"sync"
+)
+
 type PlanProgressFunc func(stage string, done int, total int, path string)
 
 func PlanIngest(options Options, provider MetadataProvider) (Plan, Summary, error) {
@@ -21,20 +26,12 @@ func PlanIngestWithProgress(options Options, provider MetadataProvider, progress
 	}
 	reportPlanProgress(progress, "scan", len(files), len(files), "")
 
-	enriched := make([]EnrichedFile, 0, len(files))
-	for index, file := range files {
-		metadata := ResolveMetadata(file, provider)
-		hash, err := HashFile(file.SourcePath)
-		if err != nil {
-			hash = ""
-		}
-		enriched = append(enriched, EnrichedFile{File: file, Metadata: metadata, Hash: hash})
-		reportPlanProgress(progress, "metadata", index+1, len(files), file.SourcePath)
-	}
+	workers := photoWorkerCount(options)
+	enriched := enrichFiles(files, provider, workers, progress)
 
 	visualSkipped := 0
 	if options.SimilarityEnabled {
-		enriched, visualSkipped = EnrichVisualHashesWithProgress(enriched, func(done int, total int, path string) {
+		enriched, visualSkipped = EnrichVisualHashesWithOptions(enriched, workers, func(done int, total int, path string) {
 			reportPlanProgress(progress, "visual-hash", done, total, path)
 		})
 	}
@@ -63,6 +60,63 @@ func reportPlanProgress(progress PlanProgressFunc, stage string, done int, total
 	if progress != nil {
 		progress(stage, done, total, path)
 	}
+}
+
+func enrichFiles(files []MediaFile, provider MetadataProvider, workers int, progress PlanProgressFunc) []EnrichedFile {
+	if workers <= 1 || len(files) < 2 {
+		enriched := make([]EnrichedFile, 0, len(files))
+		for index, file := range files {
+			enriched = append(enriched, enrichFile(file, provider))
+			reportPlanProgress(progress, "metadata", index+1, len(files), file.SourcePath)
+		}
+		return enriched
+	}
+
+	enriched := make([]EnrichedFile, len(files))
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	var progressMu sync.Mutex
+	completed := 0
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				file := files[index]
+				enriched[index] = enrichFile(file, provider)
+				progressMu.Lock()
+				completed++
+				reportPlanProgress(progress, "metadata", completed, len(files), file.SourcePath)
+				progressMu.Unlock()
+			}
+		}()
+	}
+	for index := range files {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+	return enriched
+}
+
+func enrichFile(file MediaFile, provider MetadataProvider) EnrichedFile {
+	metadata := ResolveMetadata(file, provider)
+	hash, err := HashFile(file.SourcePath)
+	if err != nil {
+		hash = ""
+	}
+	return EnrichedFile{File: file, Metadata: metadata, Hash: hash}
+}
+
+func photoWorkerCount(options Options) int {
+	if !options.FullPerformance {
+		return 1
+	}
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		return 2
+	}
+	return workers
 }
 
 func ExecuteIngest(options Options, provider MetadataProvider) (Plan, Summary, string, error) {

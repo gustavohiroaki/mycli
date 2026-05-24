@@ -3,6 +3,7 @@ package photo
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -21,6 +22,57 @@ func (f fakeMetadataProvider) Read(path string) (Metadata, error) {
 		return Metadata{}, f.err
 	}
 	return f.metadata, nil
+}
+
+type blockingMetadataProvider struct {
+	metadata Metadata
+	blockAt  int
+
+	mu        sync.Mutex
+	active    int
+	maxActive int
+	calls     int
+	release   chan struct{}
+	once      sync.Once
+}
+
+func (p *blockingMetadataProvider) Available() bool {
+	return true
+}
+
+func (p *blockingMetadataProvider) Read(path string) (Metadata, error) {
+	p.once.Do(func() {
+		p.release = make(chan struct{})
+	})
+
+	p.mu.Lock()
+	p.active++
+	p.calls++
+	if p.active > p.maxActive {
+		p.maxActive = p.active
+	}
+	if p.calls == p.blockAt {
+		close(p.release)
+	}
+	release := p.release
+	p.mu.Unlock()
+
+	<-release
+
+	p.mu.Lock()
+	p.active--
+	p.mu.Unlock()
+	return p.metadata, nil
+}
+
+func (p *blockingMetadataProvider) releaseAll() {
+	p.once.Do(func() {
+		p.release = make(chan struct{})
+	})
+	defer func() {
+		_ = recover()
+	}()
+	close(p.release)
 }
 
 func TestDateFromFilenameParsesCompactDateTime(t *testing.T) {
