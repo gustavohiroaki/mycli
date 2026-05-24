@@ -10,10 +10,17 @@ Este arquivo reúne exemplos práticos para o workflow de fotografia do `mycli`.
 
 Use quando quiser responder às perguntas no terminal: origem, destino, scan recursivo, exclusões, cópia ou movimento, estrutura de pastas, renomeação, duplicados e confirmação antes de executar.
 
-## Organizar Fotos e Vídeos
+## Abrir o Menu Guiado com Caminhos Preenchidos
 
 ```bash
 ./mycli photo ./entrada ./biblioteca
+```
+
+Esse modo nao pergunta origem e destino novamente. Ele usa os caminhos informados e ainda pergunta scan recursivo, exclusoes, copia/movimento, performance, estrutura, renomeacao, duplicados e confirmacao.
+
+## Organizar Fotos e Vídeos Diretamente
+
+```bash
 ./mycli photo organize ./entrada ./biblioteca
 ```
 

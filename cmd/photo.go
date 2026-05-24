@@ -36,9 +36,9 @@ var photoCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 2 {
-			return runPhotoOrganize(cmd, args)
+			return runPhotoMenu(args[0], args[1])
 		}
-		return runPhotoMenu()
+		return runPhotoMenu("", "")
 	},
 }
 
@@ -111,7 +111,7 @@ func runPhotoOrganize(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runPhotoMenu() error {
+func runPhotoMenu(source string, destination string) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Photo workflow")
 	fmt.Println("1) Complete ingest")
@@ -120,15 +120,23 @@ func runPhotoMenu() error {
 		return fmt.Errorf("invalid option %q", choice)
 	}
 
-	options := photo.Options{
-		Recursive:  true,
-		Structure:  photo.DefaultStructure,
-		Duplicates: photo.DuplicateSkip,
-		Report:     photo.ReportText,
+	options := photoOptions
+	if photoNoRecursive {
+		options.Recursive = false
 	}
-	options.Source = promptRequired(reader, "Source directory: ")
-	options.Destination = promptRequired(reader, "Destination directory: ")
-	options.Recursive = promptYesNo(reader, "Scan subfolders? [Y/n]: ", true)
+	options.Source = source
+	options.Destination = destination
+	if options.Source == "" {
+		options.Source = promptRequired(reader, "Source directory: ")
+	} else {
+		fmt.Printf("Source directory: %s\n", options.Source)
+	}
+	if options.Destination == "" {
+		options.Destination = promptRequired(reader, "Destination directory: ")
+	} else {
+		fmt.Printf("Destination directory: %s\n", options.Destination)
+	}
+	options.Recursive = promptYesNoOption(reader, "Scan subfolders?", options.Recursive)
 
 	excludes := promptLine(reader, "Exclude paths, comma-separated: ")
 	if excludes != "" {
@@ -140,13 +148,14 @@ func runPhotoMenu() error {
 		}
 	}
 
-	options.Move = promptYesNo(reader, "Move files instead of copying? [y/N]: ", false)
-	options.Structure = promptLine(reader, "Structure preset/template [{year}/{month}/{day}/{type}]: ")
+	options.Move = promptYesNoOption(reader, "Move files instead of copying?", options.Move)
+	options.FullPerformance = promptYesNoOption(reader, "Use fullperformance mode?", options.FullPerformance)
+	options.Structure = promptLine(reader, fmt.Sprintf("Structure preset/template [%s]: ", options.Structure))
 	if options.Structure == "" {
 		options.Structure = photo.DefaultStructure
 	}
 
-	if promptYesNo(reader, "Rename files? [y/N]: ", false) {
+	if promptYesNoOption(reader, "Rename files?", options.Rename != "") {
 		fmt.Println("1) Custom template")
 		fmt.Println("2) Grouped names")
 		renameChoice := promptLine(reader, "Rename mode [1]: ")
@@ -158,6 +167,8 @@ func runPhotoMenu() error {
 		if options.Rename == "" && renameChoice != "2" {
 			options.Rename = photo.DefaultRename
 		}
+	} else {
+		options.Rename = ""
 	}
 
 	if options.Rename == "grouped" {
@@ -189,7 +200,7 @@ func runPhotoMenu() error {
 		}
 	}
 
-	duplicates := promptLine(reader, "Duplicates [skip|separate|suffix] (skip): ")
+	duplicates := promptLine(reader, fmt.Sprintf("Duplicates [skip|separate|suffix] (%s): ", options.Duplicates))
 	if duplicates != "" {
 		if err := validateDuplicatePolicy(photo.DuplicatePolicy(duplicates)); err != nil {
 			return err
@@ -198,7 +209,7 @@ func runPhotoMenu() error {
 	}
 
 	provider := photo.ExiftoolProvider{}
-	if !provider.Available() {
+	if !provider.Available() && !options.AllowFallback {
 		if !promptYesNo(reader, "exiftool not found. Continue with fallback metadata? [y/N]: ", false) {
 			return fmt.Errorf("exiftool not found")
 		}
@@ -246,6 +257,14 @@ func promptYesNo(reader *bufio.Reader, label string, defaultValue bool) bool {
 		return defaultValue
 	}
 	return value == "y" || value == "yes" || value == "s" || value == "sim"
+}
+
+func promptYesNoOption(reader *bufio.Reader, question string, defaultValue bool) bool {
+	suffix := "[y/N]"
+	if defaultValue {
+		suffix = "[Y/n]"
+	}
+	return promptYesNo(reader, fmt.Sprintf("%s %s: ", question, suffix), defaultValue)
 }
 
 func printPlanPreview(plan photo.Plan, summary photo.Summary) {

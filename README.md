@@ -87,8 +87,10 @@ go run main.go
 # Abrir o workflow guiado de fotografia
 ./mycli photo
 
-# Organizar fotos e videos diretamente
+# Abrir o workflow guiado com origem e destino preenchidos
 ./mycli photo ./entrada ./biblioteca
+
+# Organizar fotos e videos diretamente, sem perguntas
 ./mycli photo organize ./entrada ./biblioteca
 
 # Descompactar um arquivo e apagar o original depois da verificacao
@@ -118,10 +120,17 @@ go run main.go
 
 O menu guiado pergunta origem, destino, scan recursivo, exclusoes, modo copiar/mover, estrutura de pastas, renomeacao opcional, politica de duplicados e confirmacao antes de executar.
 
-### Exemplo de uso - Organizacao direta
+### Exemplo de uso - Workflow guiado com caminhos
 
 ```bash
 ./mycli photo ./entrada ./biblioteca
+```
+
+Esse modo usa os caminhos informados e ainda pergunta as demais opcoes antes de executar.
+
+### Exemplo de uso - Organizacao direta
+
+```bash
 ./mycli photo organize ./entrada ./biblioteca
 ./mycli photo organize ./entrada ./biblioteca --structure camera-date --duplicates skip
 ./mycli photo organize ./entrada ./biblioteca --no-recursive --exclude exports
