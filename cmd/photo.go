@@ -93,7 +93,7 @@ func runPhotoOrganize(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("exiftool not found; install exiftool or pass --allow-fallback")
 	}
 
-	plan, previewSummary, err := photo.PlanIngest(options, provider)
+	plan, previewSummary, err := photo.PlanIngestWithProgress(options, provider, newPhotoPlanProgressPrinter())
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func runPhotoMenu() error {
 		options.AllowFallback = true
 	}
 
-	plan, summary, err := photo.PlanIngest(options, provider)
+	plan, summary, err := photo.PlanIngestWithProgress(options, provider, newPhotoPlanProgressPrinter())
 	if err != nil {
 		return err
 	}
@@ -273,6 +273,33 @@ func printFinalSummary(summary photo.Summary, reportPath string) {
 
 func printPhotoProgress(done int, total int, action photo.PlannedAction) {
 	fmt.Printf("Progress: %d/%d (%d%%) %s %s\n", done, total, progressPercent(done, total), action.Kind, action.SourcePath)
+}
+
+func newPhotoPlanProgressPrinter() photo.PlanProgressFunc {
+	lastStage := ""
+	lastPercent := -1
+	return func(stage string, done int, total int, path string) {
+		if total <= 0 {
+			if stage != lastStage {
+				fmt.Printf("Planning: %s\n", stage)
+				lastStage = stage
+				lastPercent = -1
+			}
+			return
+		}
+
+		percent := progressPercent(done, total)
+		if stage == lastStage && percent == lastPercent && done != total {
+			return
+		}
+		if path == "" {
+			fmt.Printf("Planning: %s %d/%d (%d%%)\n", stage, done, total, percent)
+		} else {
+			fmt.Printf("Planning: %s %d/%d (%d%%) %s\n", stage, done, total, percent, path)
+		}
+		lastStage = stage
+		lastPercent = percent
+	}
 }
 
 type duplicatePolicyValue photo.DuplicatePolicy

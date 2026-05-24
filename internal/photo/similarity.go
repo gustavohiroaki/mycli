@@ -12,25 +12,38 @@ import (
 )
 
 func EnrichVisualHashes(files []EnrichedFile) ([]EnrichedFile, int) {
+	return EnrichVisualHashesWithProgress(files, nil)
+}
+
+func EnrichVisualHashesWithProgress(files []EnrichedFile, progress func(done int, total int, path string)) ([]EnrichedFile, int) {
 	enriched := make([]EnrichedFile, len(files))
 	copy(enriched, files)
 	skipped := 0
 
 	for i, file := range enriched {
 		if file.File.Type != MediaTypePhoto || !isVisualHashExtension(file.File.Extension) {
+			reportVisualHashProgress(progress, i+1, len(enriched), file.File.SourcePath)
 			continue
 		}
 		hash, ok, err := VisualHashFile(file.File.SourcePath)
 		if err != nil || !ok {
 			enriched[i].VisualHashSkipped = true
 			skipped++
+			reportVisualHashProgress(progress, i+1, len(enriched), file.File.SourcePath)
 			continue
 		}
 		enriched[i].VisualHash = hash
 		enriched[i].HasVisualHash = true
+		reportVisualHashProgress(progress, i+1, len(enriched), file.File.SourcePath)
 	}
 
 	return enriched, skipped
+}
+
+func reportVisualHashProgress(progress func(done int, total int, path string), done int, total int, path string) {
+	if progress != nil {
+		progress(done, total, path)
+	}
 }
 
 func VisualHashFile(path string) (uint64, bool, error) {
