@@ -126,10 +126,10 @@ func TestBuildPlanWithGroupingUsesGroupedRename(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Base(plan.Actions[0].DestPath) != "2026-05-24_10-00-00_canon-r6.jpg" {
+	if filepath.Base(plan.Actions[0].DestPath) != "2026-05-24_10-00-00_001.jpg" {
 		t.Fatalf("first DestPath = %q", plan.Actions[0].DestPath)
 	}
-	if filepath.Base(plan.Actions[1].DestPath) != "2026-05-24_10-00-00_canon-r6_1.jpg" {
+	if filepath.Base(plan.Actions[1].DestPath) != "2026-05-24_10-00-00_002.jpg" {
 		t.Fatalf("second DestPath = %q", plan.Actions[1].DestPath)
 	}
 }

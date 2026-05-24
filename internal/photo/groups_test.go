@@ -51,20 +51,20 @@ func TestAssignGroupedNamesUsesBaseAndNumericSuffixes(t *testing.T) {
 	}, BurstGroups: []FileGroup{{ID: "burst-001", Type: GroupBurst, Files: []string{"/src/a.jpg", "/src/b.jpg", "/src/c.jpg"}}}}
 
 	names := AssignGroupedNames(files, grouping)
-	assertName(t, names, "/src/a.jpg", "2026-05-24_10-00-00_canon-r6.jpg")
-	assertName(t, names, "/src/b.jpg", "2026-05-24_10-00-00_canon-r6_1.jpg")
-	assertName(t, names, "/src/c.jpg", "2026-05-24_10-00-00_canon-r6_2.jpg")
+	assertName(t, names, "/src/a.jpg", "2026-05-24_10-00-00_001.jpg")
+	assertName(t, names, "/src/b.jpg", "2026-05-24_10-00-00_002.jpg")
+	assertName(t, names, "/src/c.jpg", "2026-05-24_10-00-00_003.jpg")
 }
 
-func TestAssignGroupedNamesUsesShortHashForTimestampTies(t *testing.T) {
+func TestAssignGroupedNamesUsesNumericSuffixesForTimestampTies(t *testing.T) {
 	files := []EnrichedFile{
 		groupFile("/src/a.jpg", MediaTypePhoto, "Canon R6", at("2026-05-24 10:00:00"), "a91f0000"),
 		groupFile("/src/b.jpg", MediaTypePhoto, "Canon R6", at("2026-05-24 10:00:00"), "c2040000"),
 	}
 
 	names := AssignGroupedNames(files, GroupingResult{})
-	assertName(t, names, "/src/a.jpg", "2026-05-24_10-00-00_canon-r6_a91f.jpg")
-	assertName(t, names, "/src/b.jpg", "2026-05-24_10-00-00_canon-r6_c204.jpg")
+	assertName(t, names, "/src/a.jpg", "2026-05-24_10-00-00_001.jpg")
+	assertName(t, names, "/src/b.jpg", "2026-05-24_10-00-00_002.jpg")
 }
 
 func TestAssignGroupedNamesStableWhenInputOrderChanges(t *testing.T) {
