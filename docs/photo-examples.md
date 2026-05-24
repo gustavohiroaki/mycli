@@ -18,6 +18,16 @@ Use quando quiser responder às perguntas no terminal: origem, destino, scan rec
 
 Esse modo nao pergunta origem e destino novamente. Ele usa os caminhos informados e ainda pergunta scan recursivo, exclusoes, copia/movimento, performance, estrutura, renomeacao, duplicados e confirmacao.
 
+Quando origem e destino ja sao informados, as respostas padrao ficam otimizadas para workflow fotografico:
+
+```text
+structure: {year}/{year}-{month}/{year}-{month}-{day}/{camera}/{type}
+rename: grouped
+burst-window: 2s
+similarity-threshold: 8
+duplicates: separate
+```
+
 ## Organizar Fotos e Vídeos Diretamente
 
 ```bash

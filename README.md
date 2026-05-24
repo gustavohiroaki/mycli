@@ -127,6 +127,7 @@ O menu guiado pergunta origem, destino, scan recursivo, exclusoes, modo copiar/m
 ```
 
 Esse modo usa os caminhos informados e ainda pergunta as demais opcoes antes de executar.
+Quando origem e destino ja sao informados, o menu vem com defaults recomendados para biblioteca fotografica: estrutura por data/camera/tipo, `--rename grouped`, burst em `2s`, similaridade em `8` e duplicados separados.
 
 ### Exemplo de uso - Organizacao direta
 

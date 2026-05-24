@@ -15,6 +15,8 @@ import (
 )
 
 var (
+	guidedPathStructure = "{year}/{year}-{month}/{year}-{month}-{day}/{camera}/{type}"
+
 	photoOptions = photo.Options{
 		Recursive:  true,
 		Structure:  photo.DefaultStructure,
@@ -36,9 +38,9 @@ var photoCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 2 {
-			return runPhotoMenu(args[0], args[1])
+			return runPhotoMenu(cmd, args[0], args[1])
 		}
-		return runPhotoMenu("", "")
+		return runPhotoMenu(cmd, "", "")
 	},
 }
 
@@ -111,7 +113,7 @@ func runPhotoOrganize(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runPhotoMenu(source string, destination string) error {
+func runPhotoMenu(cmd *cobra.Command, source string, destination string) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Photo workflow")
 	fmt.Println("1) Complete ingest")
@@ -121,6 +123,12 @@ func runPhotoMenu(source string, destination string) error {
 	}
 
 	options := photoOptions
+	if source != "" && destination != "" {
+		applyGuidedPathDefaults(cmd, &options)
+	}
+	if cmd.Flags().Changed("similarity-threshold") {
+		options.SimilarityEnabled = true
+	}
 	if photoNoRecursive {
 		options.Recursive = false
 	}
@@ -150,15 +158,28 @@ func runPhotoMenu(source string, destination string) error {
 
 	options.Move = promptYesNoOption(reader, "Move files instead of copying?", options.Move)
 	options.FullPerformance = promptYesNoOption(reader, "Use fullperformance mode?", options.FullPerformance)
-	options.Structure = promptLine(reader, fmt.Sprintf("Structure preset/template [%s]: ", options.Structure))
-	if options.Structure == "" {
-		options.Structure = photo.DefaultStructure
+	defaultStructure := options.Structure
+	structure := promptLine(reader, fmt.Sprintf("Structure preset/template [%s]: ", defaultStructure))
+	if structure != "" {
+		options.Structure = structure
+	} else {
+		options.Structure = defaultStructure
+		if defaultStructure == "" {
+			options.Structure = photo.DefaultStructure
+		}
 	}
 
 	if promptYesNoOption(reader, "Rename files?", options.Rename != "") {
 		fmt.Println("1) Custom template")
 		fmt.Println("2) Grouped names")
-		renameChoice := promptLine(reader, "Rename mode [1]: ")
+		renameDefault := "1"
+		if options.Rename == "grouped" {
+			renameDefault = "2"
+		}
+		renameChoice := promptLine(reader, fmt.Sprintf("Rename mode [%s]: ", renameDefault))
+		if renameChoice == "" {
+			renameChoice = renameDefault
+		}
 		if renameChoice == "2" {
 			options.Rename = "grouped"
 		} else {
@@ -172,21 +193,27 @@ func runPhotoMenu(source string, destination string) error {
 	}
 
 	if options.Rename == "grouped" {
-		if promptYesNo(reader, "Detect bursts by time window? [y/N]: ", false) {
-			window := promptLine(reader, "Burst window [2s]: ")
+		if promptYesNoOption(reader, "Detect bursts by time window?", options.BurstWindow > 0) {
+			defaultWindow := options.BurstWindow
+			if defaultWindow <= 0 {
+				defaultWindow = 2 * time.Second
+			}
+			window := promptLine(reader, fmt.Sprintf("Burst window [%s]: ", defaultWindow))
 			if window == "" {
-				window = "2s"
+				window = defaultWindow.String()
 			}
 			parsed, err := time.ParseDuration(window)
 			if err != nil {
 				return err
 			}
 			options.BurstWindow = parsed
+		} else {
+			options.BurstWindow = 0
 		}
-		if promptYesNo(reader, "Detect visual similarity? [y/N]: ", false) {
-			threshold := promptLine(reader, "Similarity threshold [8]: ")
+		if promptYesNoOption(reader, "Detect visual similarity?", options.SimilarityEnabled) {
+			threshold := promptLine(reader, fmt.Sprintf("Similarity threshold [%d]: ", options.SimilarityThreshold))
 			if threshold == "" {
-				threshold = "8"
+				threshold = strconv.Itoa(options.SimilarityThreshold)
 			}
 			parsed, err := strconv.Atoi(threshold)
 			if err != nil {
@@ -197,6 +224,8 @@ func runPhotoMenu(source string, destination string) error {
 			}
 			options.SimilarityThreshold = parsed
 			options.SimilarityEnabled = true
+		} else {
+			options.SimilarityEnabled = false
 		}
 	}
 
@@ -233,6 +262,25 @@ func runPhotoMenu(source string, destination string) error {
 	}
 	printFinalSummary(finalSummary, reportPath)
 	return nil
+}
+
+func applyGuidedPathDefaults(cmd *cobra.Command, options *photo.Options) {
+	if !cmd.Flags().Changed("structure") {
+		options.Structure = guidedPathStructure
+	}
+	if !cmd.Flags().Changed("rename") {
+		options.Rename = "grouped"
+	}
+	if !cmd.Flags().Changed("burst-window") {
+		options.BurstWindow = 2 * time.Second
+	}
+	if !cmd.Flags().Changed("similarity-threshold") {
+		options.SimilarityThreshold = 8
+		options.SimilarityEnabled = true
+	}
+	if !cmd.Flags().Changed("duplicates") {
+		options.Duplicates = photo.DuplicateSeparate
+	}
 }
 
 func promptLine(reader *bufio.Reader, label string) string {
