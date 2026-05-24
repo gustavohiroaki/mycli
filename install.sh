@@ -4,6 +4,7 @@ set -e
 BINARY_NAME="mycli"
 INSTALL_DIR="/usr/local/bin"
 GO_MIN_VERSION="1.24.1"
+GO_CMD=""
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -26,18 +27,41 @@ version_ge() {
 }
 
 check_go() {
-    if ! command -v go &>/dev/null; then
+    GO_CMD="$(command -v go || true)"
+
+    if [[ -z "$GO_CMD" && -x "/usr/local/go/bin/go" ]]; then
+        GO_CMD="/usr/local/go/bin/go"
+    fi
+
+    if [[ -z "$GO_CMD" && -x "/usr/bin/go" ]]; then
+        GO_CMD="/usr/bin/go"
+    fi
+
+    if [[ -z "$GO_CMD" && -x "/snap/bin/go" ]]; then
+        GO_CMD="/snap/bin/go"
+    fi
+
+    if [[ -z "$GO_CMD" && -n "${SUDO_USER:-}" ]]; then
+        GO_CMD="$(su - "$SUDO_USER" -c 'command -v go' 2>/dev/null || true)"
+    fi
+
+    if [[ -z "$GO_CMD" ]]; then
         warn "Go não encontrado. Instalando via apt..."
         apt-get update -qq
         apt-get install -y golang-go
+        GO_CMD="$(command -v go || true)"
     fi
 
-    GO_VERSION=$(go version | grep -oP 'go\K[0-9]+\.[0-9]+')
+    if [[ -z "$GO_CMD" ]]; then
+        error "Go não encontrado após instalação."
+    fi
+
+    GO_VERSION=$("$GO_CMD" version | grep -oP 'go\K[0-9]+\.[0-9]+')
     if ! version_ge "$GO_VERSION" "$GO_MIN_VERSION"; then
         warn "Versão do Go ($GO_VERSION) pode ser antiga. Recomendado: >= $GO_MIN_VERSION"
         warn "Considere instalar uma versão mais recente via https://go.dev/dl/"
     else
-        info "Go $GO_VERSION encontrado."
+        info "Go $GO_VERSION encontrado em $GO_CMD."
     fi
 }
 
@@ -63,8 +87,8 @@ build() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     cd "$SCRIPT_DIR"
 
-    go mod download
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$BINARY_NAME" .
+    "$GO_CMD" mod download
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 "$GO_CMD" build -ldflags="-s -w" -o "$BINARY_NAME" .
     info "Build concluído."
 }
 
