@@ -7,16 +7,25 @@ import (
 	"time"
 )
 
+type ProgressFunc func(done int, total int, action PlannedAction)
+
 func ExecutePlan(plan Plan) Summary {
+	return ExecutePlanWithProgress(plan, nil)
+}
+
+func ExecutePlanWithProgress(plan Plan, progress ProgressFunc) Summary {
 	summary := Summary{Media: len(plan.Actions)}
-	for _, action := range plan.Actions {
+	total := len(plan.Actions)
+	for index, action := range plan.Actions {
 		countAction(action, &summary)
 		if action.Kind == ActionSkip {
 			summary.Skipped++
+			reportProgress(progress, index+1, total, action)
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(action.DestPath), 0o755); err != nil {
 			summary.Failed++
+			reportProgress(progress, index+1, total, action)
 			continue
 		}
 
@@ -28,6 +37,7 @@ func ExecutePlan(plan Plan) Summary {
 		}
 		if err != nil {
 			summary.Failed++
+			reportProgress(progress, index+1, total, action)
 			continue
 		}
 		if action.Kind == ActionMove {
@@ -35,8 +45,15 @@ func ExecutePlan(plan Plan) Summary {
 		} else {
 			summary.Copied++
 		}
+		reportProgress(progress, index+1, total, action)
 	}
 	return summary
+}
+
+func reportProgress(progress ProgressFunc, done int, total int, action PlannedAction) {
+	if progress != nil {
+		progress(done, total, action)
+	}
 }
 
 func countAction(action PlannedAction, summary *Summary) {

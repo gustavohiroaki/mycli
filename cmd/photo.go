@@ -63,7 +63,7 @@ var photoOrganizeCmd = &cobra.Command{
 		}
 		printPlanPreview(plan, previewSummary)
 
-		finalSummary := photo.ExecutePlan(plan)
+		finalSummary := photo.ExecutePlanWithProgress(plan, printPhotoProgress)
 		finalSummary.Scanned = previewSummary.Scanned
 		reportPath, err := photo.WriteReport(plan, finalSummary)
 		if err != nil {
@@ -194,7 +194,7 @@ func runPhotoMenu() error {
 		return nil
 	}
 
-	finalSummary := photo.ExecutePlan(plan)
+	finalSummary := photo.ExecutePlanWithProgress(plan, printPhotoProgress)
 	finalSummary.Scanned = summary.Scanned
 	reportPath, err := photo.WriteReport(plan, finalSummary)
 	if err != nil {
@@ -251,6 +251,10 @@ func printFinalSummary(summary photo.Summary, reportPath string) {
 	if reportPath != "" {
 		fmt.Printf("Report: %s\n", reportPath)
 	}
+}
+
+func printPhotoProgress(done int, total int, action photo.PlannedAction) {
+	fmt.Printf("Progress: %d/%d (%d%%) %s %s\n", done, total, progressPercent(done, total), action.Kind, action.SourcePath)
 }
 
 type duplicatePolicyValue photo.DuplicatePolicy

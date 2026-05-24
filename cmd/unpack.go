@@ -22,7 +22,7 @@ var unpackCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		results, summary := archive.ProcessBatch(items, options, skipped)
+		results, summary := archive.ProcessBatchWithProgress(items, options, skipped, printUnpackProgress)
 		for _, result := range results {
 			printUnpackResult(result)
 		}
@@ -57,4 +57,8 @@ func printUnpackSummary(summary archive.Summary) {
 	fmt.Printf("Kept originals: %d\n", summary.KeptOriginals)
 	fmt.Printf("Failed: %d\n", summary.Failed)
 	fmt.Printf("Skipped unsupported: %d\n", summary.SkippedUnsupported)
+}
+
+func printUnpackProgress(done int, total int, result archive.Result) {
+	fmt.Printf("Progress: %d/%d (%d%%) %s %s\n", done, total, progressPercent(done, total), result.Status, result.Item.SourcePath)
 }
