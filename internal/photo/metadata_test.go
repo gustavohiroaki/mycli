@@ -124,3 +124,28 @@ func TestResolveMetadataFallsBackToFilenameThenModTime(t *testing.T) {
 		t.Fatal("UsedFallback = false, want true")
 	}
 }
+
+func TestParseExiftoolMetadataDoesNotUseDateAsCamera(t *testing.T) {
+	raw := []byte(`[{
+		"SourceFile": "IMG_0001.JPG",
+		"DateTimeOriginal": "2026-05-01 12:57:12",
+		"CreateDate": "2026-05-01 12:57:12",
+		"MediaCreateDate": "2026-05-01 12:57:12",
+		"Model": "Canon EOS R6",
+		"LensModel": "RF 35mm F1.8"
+	}]`)
+
+	got, err := parseExiftoolMetadata(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Date.Format("2006-01-02 15:04:05") != "2026-05-01 12:57:12" {
+		t.Fatalf("Date = %s", got.Date.Format("2006-01-02 15:04:05"))
+	}
+	if got.Camera != "Canon EOS R6" {
+		t.Fatalf("Camera = %q, want camera model", got.Camera)
+	}
+	if got.Lens != "RF 35mm F1.8" {
+		t.Fatalf("Lens = %q", got.Lens)
+	}
+}

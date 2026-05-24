@@ -1,7 +1,9 @@
 package photo
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -29,7 +31,7 @@ func (provider ExiftoolProvider) Read(path string) (Metadata, error) {
 
 	output, err := exec.Command(
 		"exiftool",
-		"-s3",
+		"-j",
 		"-d", "%Y-%m-%d %H:%M:%S",
 		"-DateTimeOriginal",
 		"-CreateDate",
@@ -43,31 +45,51 @@ func (provider ExiftoolProvider) Read(path string) (Metadata, error) {
 		return Metadata{}, err
 	}
 
+	return parseExiftoolMetadata(output)
+}
+
+type exiftoolMetadata struct {
+	DateTimeOriginal string `json:"DateTimeOriginal"`
+	CreateDate       string `json:"CreateDate"`
+	MediaCreateDate  string `json:"MediaCreateDate"`
+	TrackCreateDate  string `json:"TrackCreateDate"`
+	Model            string `json:"Model"`
+	LensModel        string `json:"LensModel"`
+}
+
+func parseExiftoolMetadata(output []byte) (Metadata, error) {
+	var records []exiftoolMetadata
+	if err := json.Unmarshal(output, &records); err != nil {
+		return Metadata{}, err
+	}
+	if len(records) == 0 {
+		return Metadata{}, errors.New("metadata not found")
+	}
+
+	record := records[0]
 	var metadata Metadata
-	for _, line := range strings.Split(string(output), "\n") {
-		value := strings.TrimSpace(line)
+	for _, value := range []string{
+		record.DateTimeOriginal,
+		record.CreateDate,
+		record.MediaCreateDate,
+		record.TrackCreateDate,
+	} {
+		value = strings.TrimSpace(value)
 		if value == "" {
 			continue
 		}
-		if metadata.Date.IsZero() {
-			if parsed, err := time.ParseInLocation("2006-01-02 15:04:05", value, time.Local); err == nil {
-				metadata.Date = parsed
-				continue
-			}
+		parsed, err := time.ParseInLocation("2006-01-02 15:04:05", value, time.Local)
+		if err != nil {
+			return Metadata{}, fmt.Errorf("parse metadata date: %w", err)
 		}
-		if metadata.Camera == "" {
-			metadata.Camera = value
-			continue
-		}
-		if metadata.Lens == "" {
-			metadata.Lens = value
-		}
+		metadata.Date = parsed
+		break
 	}
 	if metadata.Date.IsZero() {
 		return Metadata{}, errors.New("metadata date not found")
 	}
-	metadata.Camera = defaultMetadataValue(metadata.Camera, "unknown-camera")
-	metadata.Lens = defaultMetadataValue(metadata.Lens, "unknown-lens")
+	metadata.Camera = defaultMetadataValue(record.Model, "unknown-camera")
+	metadata.Lens = defaultMetadataValue(record.LensModel, "unknown-lens")
 	return metadata, nil
 }
 
