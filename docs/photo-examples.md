@@ -13,6 +13,7 @@ Use quando quiser responder às perguntas no terminal: origem, destino, scan rec
 ## Organizar Fotos e Vídeos
 
 ```bash
+./mycli photo ./entrada ./biblioteca
 ./mycli photo organize ./entrada ./biblioteca
 ```
 

@@ -24,10 +24,19 @@ var (
 )
 
 var photoCmd = &cobra.Command{
-	Use:   "photo",
+	Use:   "photo [source destination]",
 	Short: "Photography workflow utilities",
 	Long:  "Guided and scriptable photography ingest workflows.",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 || len(args) == 2 {
+			return nil
+		}
+		return fmt.Errorf("accepts either no arguments for the guided menu or <source> <destination>")
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 2 {
+			return runPhotoOrganize(cmd, args)
+		}
 		return runPhotoMenu()
 	},
 }
@@ -37,40 +46,7 @@ var photoOrganizeCmd = &cobra.Command{
 	Short: "Organize photos and videos into a photography library",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		options := photoOptions
-		options.Source = args[0]
-		options.Destination = args[1]
-		if photoNoRecursive {
-			options.Recursive = false
-		}
-		if cmd.Flags().Changed("similarity-threshold") {
-			options.SimilarityEnabled = true
-		} else {
-			options.SimilarityEnabled = false
-		}
-		if options.SimilarityThreshold < 0 {
-			return fmt.Errorf("similarity-threshold cannot be negative")
-		}
-
-		provider := photo.ExiftoolProvider{}
-		if !options.AllowFallback && !provider.Available() {
-			return fmt.Errorf("exiftool not found; install exiftool or pass --allow-fallback")
-		}
-
-		plan, previewSummary, err := photo.PlanIngest(options, provider)
-		if err != nil {
-			return err
-		}
-		printPlanPreview(plan, previewSummary)
-
-		finalSummary := photo.ExecutePlanWithProgress(plan, printPhotoProgress)
-		finalSummary.Scanned = previewSummary.Scanned
-		reportPath, err := photo.WriteReport(plan, finalSummary)
-		if err != nil {
-			return err
-		}
-		printFinalSummary(finalSummary, reportPath)
-		return nil
+		return runPhotoOrganize(cmd, args)
 	},
 }
 
@@ -78,17 +54,59 @@ func init() {
 	rootCmd.AddCommand(photoCmd)
 	photoCmd.AddCommand(photoOrganizeCmd)
 
-	photoOrganizeCmd.Flags().BoolVar(&photoOptions.Move, "move", false, "Move files instead of copying them")
-	photoOrganizeCmd.Flags().BoolVar(&photoOptions.Recursive, "recursive", true, "Scan source recursively")
-	photoOrganizeCmd.Flags().BoolVar(&photoNoRecursive, "no-recursive", false, "Disable recursive scan")
-	photoOrganizeCmd.Flags().StringArrayVar(&photoOptions.Excludes, "exclude", nil, "Relative path or basename pattern to exclude")
-	photoOrganizeCmd.Flags().StringVar(&photoOptions.Structure, "structure", photo.DefaultStructure, "Folder structure preset or template")
-	photoOrganizeCmd.Flags().StringVar(&photoOptions.Rename, "rename", "", "Optional rename template")
-	photoOrganizeCmd.Flags().Var((*duplicatePolicyValue)(&photoOptions.Duplicates), "duplicates", "Duplicate policy: skip, separate, suffix")
-	photoOrganizeCmd.Flags().BoolVar(&photoOptions.AllowFallback, "allow-fallback", false, "Continue without exiftool using filename/modtime fallback")
-	photoOrganizeCmd.Flags().Var((*reportFormatValue)(&photoOptions.Report), "report", "Report format: txt, json, none")
-	photoOrganizeCmd.Flags().DurationVar(&photoOptions.BurstWindow, "burst-window", 0, "Detect bursts using a duration window such as 2s")
-	photoOrganizeCmd.Flags().IntVar(&photoOptions.SimilarityThreshold, "similarity-threshold", 8, "Detect visually similar photos with this perceptual hash distance")
+	registerPhotoOrganizeFlags(photoCmd)
+	registerPhotoOrganizeFlags(photoOrganizeCmd)
+}
+
+func registerPhotoOrganizeFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&photoOptions.Move, "move", false, "Move files instead of copying them")
+	cmd.Flags().BoolVar(&photoOptions.Recursive, "recursive", true, "Scan source recursively")
+	cmd.Flags().BoolVar(&photoNoRecursive, "no-recursive", false, "Disable recursive scan")
+	cmd.Flags().StringArrayVar(&photoOptions.Excludes, "exclude", nil, "Relative path or basename pattern to exclude")
+	cmd.Flags().StringVar(&photoOptions.Structure, "structure", photo.DefaultStructure, "Folder structure preset or template")
+	cmd.Flags().StringVar(&photoOptions.Rename, "rename", "", "Optional rename template")
+	cmd.Flags().Var((*duplicatePolicyValue)(&photoOptions.Duplicates), "duplicates", "Duplicate policy: skip, separate, suffix")
+	cmd.Flags().BoolVar(&photoOptions.AllowFallback, "allow-fallback", false, "Continue without exiftool using filename/modtime fallback")
+	cmd.Flags().Var((*reportFormatValue)(&photoOptions.Report), "report", "Report format: txt, json, none")
+	cmd.Flags().DurationVar(&photoOptions.BurstWindow, "burst-window", 0, "Detect bursts using a duration window such as 2s")
+	cmd.Flags().IntVar(&photoOptions.SimilarityThreshold, "similarity-threshold", 8, "Detect visually similar photos with this perceptual hash distance")
+}
+
+func runPhotoOrganize(cmd *cobra.Command, args []string) error {
+	options := photoOptions
+	options.Source = args[0]
+	options.Destination = args[1]
+	if photoNoRecursive {
+		options.Recursive = false
+	}
+	if cmd.Flags().Changed("similarity-threshold") {
+		options.SimilarityEnabled = true
+	} else {
+		options.SimilarityEnabled = false
+	}
+	if options.SimilarityThreshold < 0 {
+		return fmt.Errorf("similarity-threshold cannot be negative")
+	}
+
+	provider := photo.ExiftoolProvider{}
+	if !options.AllowFallback && !provider.Available() {
+		return fmt.Errorf("exiftool not found; install exiftool or pass --allow-fallback")
+	}
+
+	plan, previewSummary, err := photo.PlanIngest(options, provider)
+	if err != nil {
+		return err
+	}
+	printPlanPreview(plan, previewSummary)
+
+	finalSummary := photo.ExecutePlanWithProgress(plan, printPhotoProgress)
+	finalSummary.Scanned = previewSummary.Scanned
+	reportPath, err := photo.WriteReport(plan, finalSummary)
+	if err != nil {
+		return err
+	}
+	printFinalSummary(finalSummary, reportPath)
+	return nil
 }
 
 func runPhotoMenu() error {

@@ -8,7 +8,7 @@ Uma CLI (Command Line Interface) pessoal que reúne várias ferramentas para aum
 Refina e aprimora prompts usando a API da OpenAI para obter respostas mais precisas.
 
 ### `photo` - Workflow de Fotografia
-Executa um menu guiado para ingestao de fotos e videos, com organizacao por metadados, estruturas de pastas customizaveis, tratamento de duplicados, agrupamento por burst/similaridade e relatorio final.
+Executa um menu guiado ou organiza direto quando recebe origem e destino, com organizacao por metadados, estruturas de pastas customizaveis, tratamento de duplicados, agrupamento por burst/similaridade e relatorio final.
 
 ### `photo organize` - Organizacao direta de midia
 Organiza fotos e videos por linha de comando, usando scan recursivo por padrao.
@@ -88,6 +88,7 @@ go run main.go
 ./mycli photo
 
 # Organizar fotos e videos diretamente
+./mycli photo ./entrada ./biblioteca
 ./mycli photo organize ./entrada ./biblioteca
 
 # Descompactar um arquivo e apagar o original depois da verificacao
@@ -120,6 +121,7 @@ O menu guiado pergunta origem, destino, scan recursivo, exclusoes, modo copiar/m
 ### Exemplo de uso - Organizacao direta
 
 ```bash
+./mycli photo ./entrada ./biblioteca
 ./mycli photo organize ./entrada ./biblioteca
 ./mycli photo organize ./entrada ./biblioteca --structure camera-date --duplicates skip
 ./mycli photo organize ./entrada ./biblioteca --no-recursive --exclude exports
