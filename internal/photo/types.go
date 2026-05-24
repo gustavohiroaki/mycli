@@ -27,16 +27,19 @@ const (
 )
 
 type Options struct {
-	Source        string
-	Destination   string
-	Recursive     bool
-	Excludes      []string
-	Move          bool
-	Structure     string
-	Rename        string
-	Duplicates    DuplicatePolicy
-	AllowFallback bool
-	Report        ReportFormat
+	Source              string
+	Destination         string
+	Recursive           bool
+	Excludes            []string
+	Move                bool
+	Structure           string
+	Rename              string
+	Duplicates          DuplicatePolicy
+	AllowFallback       bool
+	Report              ReportFormat
+	BurstWindow         time.Duration
+	SimilarityEnabled   bool
+	SimilarityThreshold int
 }
 
 type MediaFile struct {
@@ -56,9 +59,35 @@ type Metadata struct {
 }
 
 type EnrichedFile struct {
-	File     MediaFile
-	Metadata Metadata
-	Hash     string
+	File              MediaFile
+	Metadata          Metadata
+	Hash              string
+	VisualHash        uint64
+	HasVisualHash     bool
+	VisualHashSkipped bool
+}
+
+type GroupType string
+
+const (
+	GroupBurst   GroupType = "burst"
+	GroupSimilar GroupType = "similar"
+)
+
+type FileGroup struct {
+	ID    string
+	Type  GroupType
+	Files []string
+}
+
+type GroupingResult struct {
+	BurstGroups             []FileGroup
+	SimilarGroups           []FileGroup
+	PreferredGroupByFile    map[string]string
+	VisualSimilaritySkipped int
+	BurstWindow             time.Duration
+	SimilarityEnabled       bool
+	SimilarityThreshold     int
 }
 
 type ActionKind string
@@ -80,20 +109,26 @@ type PlannedAction struct {
 }
 
 type Plan struct {
-	Options Options
-	Actions []PlannedAction
+	Options  Options
+	Actions  []PlannedAction
+	Grouping GroupingResult
 }
 
 type Summary struct {
-	Scanned       int
-	Media         int
-	Copied        int
-	Moved         int
-	Skipped       int
-	Duplicates    int
-	Failed        int
-	Photos        int
-	Videos        int
-	Raw           int
-	FallbackDates int
+	Scanned                 int
+	Media                   int
+	Copied                  int
+	Moved                   int
+	Skipped                 int
+	Duplicates              int
+	Failed                  int
+	Photos                  int
+	Videos                  int
+	Raw                     int
+	FallbackDates           int
+	BurstGroups             int
+	LargestBurst            int
+	SimilarGroups           int
+	LargestSimilar          int
+	VisualSimilaritySkipped int
 }
