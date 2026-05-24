@@ -31,6 +31,11 @@ func RenderTextReport(plan Plan, summary Summary) string {
 	builder.WriteString(fmt.Sprintf("Videos: %d\n", summary.Videos))
 	builder.WriteString(fmt.Sprintf("Raw: %d\n", summary.Raw))
 	builder.WriteString(fmt.Sprintf("Fallback metadata: %d\n", summary.FallbackDates))
+	builder.WriteString(fmt.Sprintf("Burst groups: %d\n", summary.BurstGroups))
+	builder.WriteString(fmt.Sprintf("Largest burst: %d\n", summary.LargestBurst))
+	builder.WriteString(fmt.Sprintf("Similar groups: %d\n", summary.SimilarGroups))
+	builder.WriteString(fmt.Sprintf("Largest similar group: %d\n", summary.LargestSimilar))
+	builder.WriteString(fmt.Sprintf("Visual similarity skipped: %d\n", summary.VisualSimilaritySkipped))
 	return builder.String()
 }
 

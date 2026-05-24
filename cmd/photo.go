@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"mycli/internal/photo"
 
@@ -40,6 +42,14 @@ var photoOrganizeCmd = &cobra.Command{
 		options.Destination = args[1]
 		if photoNoRecursive {
 			options.Recursive = false
+		}
+		if cmd.Flags().Changed("similarity-threshold") {
+			options.SimilarityEnabled = true
+		} else {
+			options.SimilarityEnabled = false
+		}
+		if options.SimilarityThreshold < 0 {
+			return fmt.Errorf("similarity-threshold cannot be negative")
 		}
 
 		provider := photo.ExiftoolProvider{}
@@ -77,6 +87,8 @@ func init() {
 	photoOrganizeCmd.Flags().Var((*duplicatePolicyValue)(&photoOptions.Duplicates), "duplicates", "Duplicate policy: skip, separate, suffix")
 	photoOrganizeCmd.Flags().BoolVar(&photoOptions.AllowFallback, "allow-fallback", false, "Continue without exiftool using filename/modtime fallback")
 	photoOrganizeCmd.Flags().Var((*reportFormatValue)(&photoOptions.Report), "report", "Report format: txt, json, none")
+	photoOrganizeCmd.Flags().DurationVar(&photoOptions.BurstWindow, "burst-window", 0, "Detect bursts using a duration window such as 2s")
+	photoOrganizeCmd.Flags().IntVar(&photoOptions.SimilarityThreshold, "similarity-threshold", 8, "Detect visually similar photos with this perceptual hash distance")
 }
 
 func runPhotoMenu() error {
@@ -115,9 +127,45 @@ func runPhotoMenu() error {
 	}
 
 	if promptYesNo(reader, "Rename files? [y/N]: ", false) {
-		options.Rename = promptLine(reader, "Rename template [{date}_{time}_{camera}_{seq}{ext}]: ")
-		if options.Rename == "" {
+		fmt.Println("1) Custom template")
+		fmt.Println("2) Grouped names")
+		renameChoice := promptLine(reader, "Rename mode [1]: ")
+		if renameChoice == "2" {
+			options.Rename = "grouped"
+		} else {
+			options.Rename = promptLine(reader, "Rename template [{date}_{time}_{camera}_{seq}{ext}]: ")
+		}
+		if options.Rename == "" && renameChoice != "2" {
 			options.Rename = photo.DefaultRename
+		}
+	}
+
+	if options.Rename == "grouped" {
+		if promptYesNo(reader, "Detect bursts by time window? [y/N]: ", false) {
+			window := promptLine(reader, "Burst window [2s]: ")
+			if window == "" {
+				window = "2s"
+			}
+			parsed, err := time.ParseDuration(window)
+			if err != nil {
+				return err
+			}
+			options.BurstWindow = parsed
+		}
+		if promptYesNo(reader, "Detect visual similarity? [y/N]: ", false) {
+			threshold := promptLine(reader, "Similarity threshold [8]: ")
+			if threshold == "" {
+				threshold = "8"
+			}
+			parsed, err := strconv.Atoi(threshold)
+			if err != nil {
+				return err
+			}
+			if parsed < 0 {
+				return fmt.Errorf("similarity threshold cannot be negative")
+			}
+			options.SimilarityThreshold = parsed
+			options.SimilarityEnabled = true
 		}
 	}
 
@@ -184,6 +232,8 @@ func printPlanPreview(plan photo.Plan, summary photo.Summary) {
 	fmt.Printf("Found %d media files\n", summary.Media)
 	fmt.Printf("Photos: %d, Raw: %d, Videos: %d\n", summary.Photos, summary.Raw, summary.Videos)
 	fmt.Printf("Duplicates: %d, fallback metadata: %d\n", summary.Duplicates, summary.FallbackDates)
+	fmt.Printf("Burst groups: %d, largest burst: %d\n", summary.BurstGroups, summary.LargestBurst)
+	fmt.Printf("Similar groups: %d, visual similarity skipped: %d\n", summary.SimilarGroups, summary.VisualSimilaritySkipped)
 	for i, action := range plan.Actions {
 		if i >= 5 {
 			break
