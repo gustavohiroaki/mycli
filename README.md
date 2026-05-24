@@ -13,6 +13,9 @@ Executa um menu guiado para ingestao de fotos e videos, com organizacao por meta
 ### `photo organize` - Organizacao direta de midia
 Organiza fotos e videos por linha de comando, usando scan recursivo por padrao.
 
+### `unpack` - Descompactador seguro em lote
+Descompacta arquivos `.zip`, `.tar`, `.tar.gz` e `.tgz`, verifica os arquivos extraidos e apaga cada compactado original somente depois de uma verificacao bem-sucedida.
+
 ## ✨ Funcionalidades
 
 - 🤖 **Integração com APIs externas** (OpenAI)
@@ -20,6 +23,7 @@ Organiza fotos e videos por linha de comando, usando scan recursivo por padrao.
 - 📋 **Integração com clipboard** para facilitar o workflow
 - 📄 **Suporte a arquivos de contexto**
 - 📷 **Workflow de fotografia** com organizacao por data, camera, tipo de midia e tratamento de duplicados
+- 📦 **Descompactacao segura** em lote com verificacao antes de apagar originais
 
 ## 🚀 Como usar
 
@@ -85,6 +89,12 @@ go run main.go
 
 # Organizar fotos e videos diretamente
 ./mycli photo organize ./entrada ./biblioteca
+
+# Descompactar um arquivo e apagar o original depois da verificacao
+./mycli unpack arquivo.zip
+
+# Descompactar compactados de uma pasta
+./mycli unpack ./downloads
 ```
 
 ### Exemplo de uso - Ferramenta `prompt`
@@ -127,6 +137,27 @@ Tokens iniciais: `{year}`, `{month}`, `{day}`, `{date}`, `{time}`, `{camera}`, `
 
 Veja mais cenários em [docs/photo-examples.md](docs/photo-examples.md).
 
+### Exemplo de uso - Descompactador seguro
+
+```bash
+# Descompactar um arquivo e apagar o original depois da verificacao
+./mycli unpack arquivo.zip
+
+# Descompactar compactados de uma pasta
+./mycli unpack ./downloads
+
+# Procurar tambem em subpastas
+./mycli unpack ./downloads --recursive
+
+# Preservar os originais
+./mycli unpack ./downloads --keep
+
+# Extrair em outro destino
+./mycli unpack ./downloads --dest ./extraidos
+```
+
+O `unpack` apaga cada arquivo compactado automaticamente apenas depois de extrair e verificar aquele arquivo. Use `--keep` para preservar os compactados originais.
+
 ## 🛠️ Desenvolvimento
 
 ### Comandos úteis
@@ -154,9 +185,11 @@ mycli/
 │   ├── root.go         # Comando raiz do Cobra
 │   ├── prompt.go       # Comando principal de refinamento
 │   ├── photo.go        # Workflow de fotografia
+│   ├── unpack.go       # Descompactador seguro
 │   └── interactive.go  # Funções de interação com usuário
 ├── docs/
 │   └── photo-examples.md # Exemplos de uso do comando photo
+├── internal/archive/   # Descoberta, extracao e verificacao de compactados
 ├── internal/photo/     # Motor de ingestao, metadados, templates e relatorios
 ├── go.mod              # Dependências do Go
 └── README.md           # Este arquivo
