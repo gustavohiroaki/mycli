@@ -1,12 +1,14 @@
 package compress
 
 type Options struct {
-	Input     string
-	Dest      string
-	Level     int
-	Recursive bool
-	Replace   bool
-	Overwrite bool
+	Input           string
+	Dest            string
+	Level           int
+	Recursive       bool
+	Replace         bool
+	Overwrite       bool
+	Workers         int
+	FullPerformance bool
 }
 
 type Item struct {

@@ -220,6 +220,9 @@ O `unpack` apaga cada arquivo compactado automaticamente apenas depois de extrai
 # Compactar um pouco mais
 ./mycli compress ./videos --recursive --level 55 --dest ./videos-comprimidos
 
+# Compactar varios videos em paralelo
+./mycli compress ./videos --recursive --fullperformance --dest ./videos-comprimidos
+
 # Substituir original somente se o resultado for valido e menor
 ./mycli compress ./videos --recursive --replace
 ```

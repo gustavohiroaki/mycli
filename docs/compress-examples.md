@@ -39,3 +39,17 @@ Nivel:
 ```
 
 Com `--replace`, o original so e substituido se o video comprimido for valido e menor.
+
+## Usar Mais Processadores
+
+```bash
+./mycli compress ./videos --recursive --fullperformance --dest ./videos-comprimidos
+```
+
+`--fullperformance` executa mais de um FFmpeg em paralelo usando uma quantidade conservadora de workers baseada nos CPUs disponiveis.
+
+Para controlar manualmente:
+
+```bash
+./mycli compress ./videos --recursive --workers 3 --dest ./videos-comprimidos
+```

@@ -41,6 +41,8 @@ func init() {
 	compressCmd.Flags().BoolVar(&compressOptions.Recursive, "recursive", false, "Process videos in subdirectories")
 	compressCmd.Flags().BoolVar(&compressOptions.Replace, "replace", false, "Replace original only when compressed output is valid and smaller")
 	compressCmd.Flags().BoolVar(&compressOptions.Overwrite, "overwrite", false, "Overwrite existing output files")
+	compressCmd.Flags().IntVar(&compressOptions.Workers, "workers", 0, "Parallel ffmpeg processes; default is 1, or CPU-aware with --fullperformance")
+	compressCmd.Flags().BoolVar(&compressOptions.FullPerformance, "fullperformance", false, "Use multiple parallel ffmpeg processes")
 }
 
 func printCompressProgress(done int, total int, result compress.Result) {

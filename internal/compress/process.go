@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type ProgressFunc func(done int, total int, result Result)
@@ -17,6 +19,9 @@ type EncodeProgressFunc func(item Item, percent int)
 func ValidateOptions(options Options) error {
 	if options.Level < 1 || options.Level > 100 {
 		return fmt.Errorf("level must be between 1 and 100")
+	}
+	if options.Workers < 0 {
+		return fmt.Errorf("workers cannot be negative")
 	}
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		return fmt.Errorf("ffmpeg not found; install ffmpeg first")
@@ -32,27 +37,88 @@ func ProcessBatch(items []Item, options Options, progress ProgressFunc) ([]Resul
 }
 
 func ProcessBatchWithEncodeProgress(items []Item, options Options, progress ProgressFunc, encodeProgress EncodeProgressFunc) ([]Result, Summary) {
+	workers := workerCount(options, len(items))
+	if workers > 1 {
+		return processBatchParallel(items, options, progress, encodeProgress, workers)
+	}
+	return processBatchSequential(items, options, progress, encodeProgress)
+}
+
+func processBatchSequential(items []Item, options Options, progress ProgressFunc, encodeProgress EncodeProgressFunc) ([]Result, Summary) {
 	results := make([]Result, 0, len(items))
 	summary := Summary{Found: len(items)}
 	for index, item := range items {
 		result := ProcessWithProgress(item, options, encodeProgress)
 		results = append(results, result)
-		switch result.Status {
-		case StatusOK, StatusReplace:
-			summary.Compressed++
-			if result.InputSize > result.OutputSize {
-				summary.SavedBytes += result.InputSize - result.OutputSize
-			}
-		case StatusSkip:
-			summary.Skipped++
-		case StatusFail:
-			summary.Failed++
-		}
+		countResult(&summary, result)
 		if progress != nil {
 			progress(index+1, len(items), result)
 		}
 	}
 	return results, summary
+}
+
+func processBatchParallel(items []Item, options Options, progress ProgressFunc, encodeProgress EncodeProgressFunc, workers int) ([]Result, Summary) {
+	type jobResult struct {
+		index  int
+		result Result
+	}
+
+	jobs := make(chan int)
+	resultCh := make(chan jobResult, len(items))
+	var wg sync.WaitGroup
+	var encodeMu sync.Mutex
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				item := items[index]
+				result := ProcessWithProgress(item, options, func(item Item, percent int) {
+					if encodeProgress == nil {
+						return
+					}
+					encodeMu.Lock()
+					encodeProgress(item, percent)
+					encodeMu.Unlock()
+				})
+				resultCh <- jobResult{index: index, result: result}
+			}
+		}()
+	}
+	for index := range items {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+	close(resultCh)
+
+	results := make([]Result, len(items))
+	summary := Summary{Found: len(items)}
+	completed := 0
+	for item := range resultCh {
+		completed++
+		results[item.index] = item.result
+		countResult(&summary, item.result)
+		if progress != nil {
+			progress(completed, len(items), item.result)
+		}
+	}
+	return results, summary
+}
+
+func countResult(summary *Summary, result Result) {
+	switch result.Status {
+	case StatusOK, StatusReplace:
+		summary.Compressed++
+		if result.InputSize > result.OutputSize {
+			summary.SavedBytes += result.InputSize - result.OutputSize
+		}
+	case StatusSkip:
+		summary.Skipped++
+	case StatusFail:
+		summary.Failed++
+	}
 }
 
 func Process(item Item, options Options) Result {
@@ -133,6 +199,29 @@ func ffmpegArgs(input string, output string, level int) []string {
 		"-nostats",
 		output,
 	}
+}
+
+func workerCount(options Options, itemCount int) int {
+	if itemCount < 2 {
+		return 1
+	}
+	if options.Workers > 0 {
+		if options.Workers > itemCount {
+			return itemCount
+		}
+		return options.Workers
+	}
+	if options.FullPerformance {
+		workers := runtime.NumCPU() / 2
+		if workers < 2 {
+			workers = 2
+		}
+		if workers > itemCount {
+			return itemCount
+		}
+		return workers
+	}
+	return 1
 }
 
 func crfFromLevel(level int) int {

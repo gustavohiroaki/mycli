@@ -22,6 +22,21 @@ func TestCRFFromLevel(t *testing.T) {
 	}
 }
 
+func TestWorkerCount(t *testing.T) {
+	if got := workerCount(Options{}, 4); got != 1 {
+		t.Fatalf("default workers = %d, want 1", got)
+	}
+	if got := workerCount(Options{Workers: 3}, 4); got != 3 {
+		t.Fatalf("explicit workers = %d, want 3", got)
+	}
+	if got := workerCount(Options{Workers: 10}, 4); got != 4 {
+		t.Fatalf("capped workers = %d, want 4", got)
+	}
+	if got := workerCount(Options{FullPerformance: true}, 4); got < 2 || got > 4 {
+		t.Fatalf("fullperformance workers = %d, want between 2 and 4", got)
+	}
+}
+
 func TestValidateOptionsRejectsInvalidLevel(t *testing.T) {
 	if err := ValidateOptions(Options{Level: 0}); err == nil {
 		t.Fatal("expected error")
