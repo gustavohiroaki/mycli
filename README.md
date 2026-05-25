@@ -29,7 +29,7 @@ Descompacta arquivos `.zip`, `.tar`, `.tar.gz` e `.tgz`, verifica os arquivos ex
 
 ### Pré-requisitos
 
-1. **Go 1.24.1** ou superior instalado
+1. **Go 1.25.0** ou superior instalado
 2. **Chave da API OpenAI** configurada como variável de ambiente para a ferramenta `prompt`
 3. **ExifTool** recomendado para o workflow `photo`, usado para ler data real, camera e lente
 
@@ -93,6 +93,12 @@ go run main.go
 # Organizar fotos e videos diretamente, sem perguntas
 ./mycli photo organize ./entrada ./biblioteca
 
+# Inicializar biblioteca fotografica padrao
+./mycli photo library init ./biblioteca --name principal
+
+# Importar novas fotos usando a biblioteca padrao
+./mycli photo import ./entrada
+
 # Descompactar um arquivo e apagar o original depois da verificacao
 ./mycli unpack arquivo.zip
 
@@ -150,8 +156,27 @@ Estruturas de pasta podem usar presets ou templates:
 Tokens iniciais: `{year}`, `{month}`, `{day}`, `{date}`, `{time}`, `{camera}`, `{lens}`, `{type}`, `{extension}`.
 
 Use `--rename grouped` para dar nomes parecidos a fotos relacionadas. Combine com `--burst-window 2s` para agrupar sequencias por tempo e com `--similarity-threshold 8` para agrupar imagens visualmente parecidas quando o formato puder ser decodificado. Esses grupos afetam nomes e relatorios; nao criam pastas extras nem apagam fotos similares.
+No modo `grouped`, bursts recebem sufixos como `_b001` e similares recebem sufixos como `_s001`, facilitando busca e revisão.
 
 Use `--fullperformance` para executar leitura de metadados, hashes e copia/movimento em paralelo usando os CPUs disponiveis. A ordem dos logs pode refletir a ordem de conclusao dos arquivos.
+
+### Exemplo de uso - Biblioteca fotografica
+
+```bash
+# Criar biblioteca e salvar como padrao global
+./mycli photo library init ./biblioteca --name principal
+
+# Ver bibliotecas salvas
+./mycli photo library list
+
+# Trocar biblioteca padrao
+./mycli photo library use principal
+
+# Importar novas fotos usando a config salva da biblioteca padrao
+./mycli photo import ./cartao/DCIM
+```
+
+A biblioteca salva a configuracao em `./biblioteca/.mycli-photo/config.json` e o indice/historico em `./biblioteca/.mycli-photo/library.db`. O ponteiro global da biblioteca padrao fica em `~/.config/mycli/mycli.db`.
 
 Veja mais cenários em [docs/photo-examples.md](docs/photo-examples.md).
 

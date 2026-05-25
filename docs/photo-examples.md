@@ -28,6 +28,24 @@ similarity-threshold: 8
 duplicates: separate
 ```
 
+Ao executar a importacao pelo menu guiado com destino, o `mycli` salva a configuracao da biblioteca em `.mycli-photo/config.json`, registra a biblioteca como padrao global e grava o historico/indice em `.mycli-photo/library.db`.
+
+## Biblioteca Padrão e Reimportação
+
+```bash
+./mycli photo library init ./biblioteca --name principal
+./mycli photo library list
+./mycli photo library use principal
+```
+
+Depois disso, novas importacoes podem usar a mesma configuracao salva:
+
+```bash
+./mycli photo import ./novo-cartao/DCIM
+```
+
+O comando `photo import` usa a biblioteca padrao global, carrega `./biblioteca/.mycli-photo/config.json` e compara hashes com `./biblioteca/.mycli-photo/library.db` para identificar duplicados ja importados.
+
 ## Organizar Fotos e Vídeos Diretamente
 
 ```bash
@@ -153,6 +171,8 @@ O modo `grouped` cria nomes parecidos para fotos relacionadas:
 2026-05-24_14-32-10_canon-eos-r6_b001.jpg
 2026-05-24_14-32-10_canon-eos-r6_b001_1.jpg
 2026-05-24_14-32-10_canon-eos-r6_b001_2.jpg
+2026-05-24_15-10-00_canon-eos-r6_s001.jpg
+2026-05-24_15-10-00_canon-eos-r6_s001_1.jpg
 ```
 
 Para detectar bursts por tempo:

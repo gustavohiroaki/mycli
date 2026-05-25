@@ -27,11 +27,17 @@ func BuildPlanWithGrouping(files []EnrichedFile, duplicates map[string]bool, opt
 	for index, file := range files {
 		isDuplicate := duplicates[file.File.SourcePath]
 		action := PlannedAction{
-			Kind:         ActionCopy,
-			SourcePath:   file.File.SourcePath,
-			MediaType:    file.File.Type,
-			Duplicate:    isDuplicate,
-			UsedFallback: file.Metadata.UsedFallback,
+			Kind:          ActionCopy,
+			SourcePath:    file.File.SourcePath,
+			MediaType:     file.File.Type,
+			Duplicate:     isDuplicate,
+			UsedFallback:  file.Metadata.UsedFallback,
+			Hash:          file.Hash,
+			VisualHash:    file.VisualHash,
+			HasVisualHash: file.HasVisualHash,
+			Metadata:      file.Metadata,
+			SourceSize:    file.File.Size,
+			Extension:     file.File.Extension,
 		}
 		if options.Move {
 			action.Kind = ActionMove

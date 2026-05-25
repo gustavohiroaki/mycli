@@ -22,7 +22,16 @@ func HashFile(path string) (string, error) {
 }
 
 func MarkDuplicates(files []EnrichedFile) map[string]bool {
+	return MarkDuplicatesWithKnown(files, nil)
+}
+
+func MarkDuplicatesWithKnown(files []EnrichedFile, known map[string]string) map[string]bool {
 	seen := map[string]string{}
+	for hash, path := range known {
+		if hash != "" {
+			seen[hash] = path
+		}
+	}
 	duplicates := map[string]bool{}
 	for _, file := range files {
 		if file.Hash == "" {

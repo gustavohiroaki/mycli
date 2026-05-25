@@ -244,6 +244,16 @@ func runPhotoMenu(cmd *cobra.Command, source string, destination string) error {
 		}
 		options.AllowFallback = true
 	}
+	knownHashes, err := photo.ExistingHashes(options.Destination)
+	if err != nil {
+		return err
+	}
+	options.KnownHashes = knownHashes
+	knownVisualHashes, err := photo.ExistingVisualHashes(options.Destination)
+	if err != nil {
+		return err
+	}
+	options.KnownVisualHashes = knownVisualHashes
 
 	plan, summary, err := photo.PlanIngestWithProgress(options, provider, newPhotoPlanProgressPrinter())
 	if err != nil {
@@ -258,6 +268,9 @@ func runPhotoMenu(cmd *cobra.Command, source string, destination string) error {
 	finalSummary.Scanned = summary.Scanned
 	reportPath, err := photo.WriteReport(plan, finalSummary)
 	if err != nil {
+		return err
+	}
+	if err := persistPhotoLibraryImport(options, plan, finalSummary); err != nil {
 		return err
 	}
 	printFinalSummary(finalSummary, reportPath)

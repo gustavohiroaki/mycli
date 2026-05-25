@@ -3,7 +3,7 @@ set -e
 
 BINARY_NAME="mycli"
 INSTALL_DIR="/usr/local/bin"
-GO_MIN_VERSION="1.24.1"
+GO_MIN_VERSION="1.25.0"
 GO_CMD=""
 
 RED='\033[0;31m'
@@ -46,10 +46,8 @@ check_go() {
     fi
 
     if [ -z "$GO_CMD" ]; then
-        warn "Go não encontrado. Instalando via apt..."
-        apt-get update -qq
-        apt-get install -y golang-go
-        GO_CMD="$(command -v go || true)"
+        warn "Go não encontrado. Instalando Go $GO_MIN_VERSION oficial..."
+        install_go_official
     fi
 
     if [ -z "$GO_CMD" ]; then
@@ -58,11 +56,37 @@ check_go() {
 
     GO_VERSION=$("$GO_CMD" version | sed -n 's/.*go\([0-9][0-9]*\.[0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\).*/\1/p')
     if ! version_ge "$GO_VERSION" "$GO_MIN_VERSION"; then
-        warn "Versão do Go ($GO_VERSION) pode ser antiga. Recomendado: >= $GO_MIN_VERSION"
-        warn "Considere instalar uma versão mais recente via https://go.dev/dl/"
+        warn "Versão do Go ($GO_VERSION) antiga. Instalando Go $GO_MIN_VERSION oficial..."
+        install_go_official
+        GO_VERSION=$("$GO_CMD" version | sed -n 's/.*go\([0-9][0-9]*\.[0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\).*/\1/p')
+        if ! version_ge "$GO_VERSION" "$GO_MIN_VERSION"; then
+            error "Go $GO_VERSION instalado, mas esperado >= $GO_MIN_VERSION."
+        fi
     else
         info "Go $GO_VERSION encontrado em $GO_CMD."
     fi
+}
+
+install_go_official() {
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64|amd64) go_arch="amd64" ;;
+        aarch64|arm64) go_arch="arm64" ;;
+        *) error "Arquitetura não suportada para instalação automática do Go: $arch" ;;
+    esac
+
+    apt-get update -qq
+    apt-get install -y curl ca-certificates tar
+
+    tmp_file="/tmp/go${GO_MIN_VERSION}.linux-${go_arch}.tar.gz"
+    url="https://go.dev/dl/go${GO_MIN_VERSION}.linux-${go_arch}.tar.gz"
+    info "Baixando $url..."
+    curl -fsSL "$url" -o "$tmp_file"
+    rm -rf /usr/local/go
+    tar -C /usr/local -xzf "$tmp_file"
+    rm -f "$tmp_file"
+    GO_CMD="/usr/local/go/bin/go"
+    info "Go instalado em $GO_CMD."
 }
 
 install_exiftool() {

@@ -63,6 +63,22 @@ func TestDetectSimilarGroupsIgnoresVideosRawAndMissingHashes(t *testing.T) {
 	}
 }
 
+func TestDetectSimilarGroupsAgainstKnown(t *testing.T) {
+	files := []EnrichedFile{
+		similarFile("/new/a.jpg", 0b1111, true),
+		similarFile("/new/b.jpg", 0b0000, true),
+	}
+	known := []KnownVisualHash{{Path: "/library/old.jpg", Hash: 0b1110}}
+
+	groups := DetectSimilarGroupsAgainstKnown(files, known, 1)
+	if len(groups) != 1 {
+		t.Fatalf("len(groups) = %d, want 1", len(groups))
+	}
+	if groups[0].Type != GroupSimilar || len(groups[0].Files) != 1 || groups[0].Files[0] != "/new/a.jpg" {
+		t.Fatalf("groups = %+v", groups)
+	}
+}
+
 func TestEnrichVisualHashesSkipsUndecodableFiles(t *testing.T) {
 	root := t.TempDir()
 	bad := filepath.Join(root, "bad.jpg")

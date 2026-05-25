@@ -41,6 +41,13 @@ type Options struct {
 	SimilarityEnabled   bool
 	SimilarityThreshold int
 	FullPerformance     bool
+	KnownHashes         map[string]string `json:"-"`
+	KnownVisualHashes   []KnownVisualHash `json:"-"`
+}
+
+type KnownVisualHash struct {
+	Path string
+	Hash uint64
 }
 
 type MediaFile struct {
@@ -100,13 +107,19 @@ const (
 )
 
 type PlannedAction struct {
-	Kind         ActionKind
-	SourcePath   string
-	DestPath     string
-	MediaType    MediaType
-	Duplicate    bool
-	UsedFallback bool
-	Error        string
+	Kind          ActionKind
+	SourcePath    string
+	DestPath      string
+	MediaType     MediaType
+	Duplicate     bool
+	UsedFallback  bool
+	Error         string
+	Hash          string
+	VisualHash    uint64
+	HasVisualHash bool
+	Metadata      Metadata
+	SourceSize    int64
+	Extension     string
 }
 
 type Plan struct {

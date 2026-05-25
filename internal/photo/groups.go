@@ -75,6 +75,9 @@ func AssignGroupedNames(files []EnrichedFile, grouping GroupingResult) map[strin
 		if group.Type == GroupBurst {
 			groupLabels[group.ID] = burstLabel(group.ID)
 		}
+		if group.Type == GroupSimilar {
+			groupLabels[group.ID] = similarLabel(group.ID)
+		}
 	}
 
 	for _, file := range files {
@@ -219,4 +222,23 @@ func burstLabel(groupID string) string {
 		return "b000"
 	}
 	return fmt.Sprintf("b%03d", value)
+}
+
+func similarLabel(groupID string) string {
+	value, err := strconv.Atoi(strings.TrimPrefix(groupID, "similar-"))
+	if err != nil {
+		return "s000"
+	}
+	return fmt.Sprintf("s%03d", value)
+}
+
+func renumberGroups(groups []FileGroup, groupType GroupType) {
+	count := 0
+	for index := range groups {
+		if groups[index].Type != groupType {
+			continue
+		}
+		count++
+		groups[index].ID = fmt.Sprintf("%s-%03d", groupType, count)
+	}
 }

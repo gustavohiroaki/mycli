@@ -40,11 +40,13 @@ func PlanIngestWithProgress(options Options, provider MetadataProvider, progress
 	var similarGroups []FileGroup
 	if options.SimilarityEnabled {
 		similarGroups = DetectSimilarGroups(enriched, options.SimilarityThreshold)
+		similarGroups = append(similarGroups, DetectSimilarGroupsAgainstKnown(enriched, options.KnownVisualHashes, options.SimilarityThreshold)...)
+		renumberGroups(similarGroups, GroupSimilar)
 	}
 	grouping := MergeGrouping(enriched, burstGroups, similarGroups, visualSkipped, options)
 
 	reportPlanProgress(progress, "plan", 0, 0, "")
-	duplicates := MarkDuplicates(enriched)
+	duplicates := MarkDuplicatesWithKnown(enriched, options.KnownHashes)
 	plan, err := BuildPlanWithGrouping(enriched, duplicates, options, grouping)
 	if err != nil {
 		return Plan{}, Summary{}, err

@@ -3,7 +3,8 @@ $ErrorActionPreference = "Stop"
 $BinaryName = "mycli"
 $ExecutableName = "$BinaryName.exe"
 $InstallDir = Join-Path $env:LOCALAPPDATA "Programs\mycli"
-$GoMinVersion = "1.24.1"
+$GoMinVersion = "1.25.0"
+$GoCommand = "go"
 
 function Write-Info {
     param([string]$Message)
@@ -42,11 +43,19 @@ function Test-VersionGreaterOrEqual {
 }
 
 function Test-Go {
-    if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-        Write-ErrorAndExit "Go nao encontrado. Instale Go $GoMinVersion ou superior em https://go.dev/dl/ e execute este script novamente."
+    $found = Find-Go
+    if (-not $found) {
+        Write-Warn "Go nao encontrado. Instalando Go via winget..."
+        Install-Go
+        $found = Find-Go
     }
 
-    $goVersionOutput = & go version
+    if (-not $found) {
+        Write-ErrorAndExit "Go nao encontrado apos instalacao."
+    }
+
+    $script:GoCommand = $found
+    $goVersionOutput = & $script:GoCommand version
     if ($goVersionOutput -notmatch "go([0-9]+(\.[0-9]+){1,2})") {
         Write-Warn "Nao foi possivel identificar a versao do Go. Saida: $goVersionOutput"
         return
@@ -54,10 +63,55 @@ function Test-Go {
 
     $goVersion = $Matches[1]
     if (-not (Test-VersionGreaterOrEqual $goVersion $GoMinVersion)) {
-        Write-Warn "Versao do Go ($goVersion) pode ser antiga. Recomendado: >= $GoMinVersion"
-        Write-Warn "Considere instalar uma versao mais recente via https://go.dev/dl/"
+        Write-Warn "Versao do Go ($goVersion) antiga. Instalando/atualizando Go via winget..."
+        Install-Go
+        $found = Find-Go
+        if (-not $found) {
+            Write-ErrorAndExit "Go nao encontrado apos atualizacao."
+        }
+        $script:GoCommand = $found
+        $goVersionOutput = & $script:GoCommand version
+        if ($goVersionOutput -notmatch "go([0-9]+(\.[0-9]+){1,2})") {
+            Write-ErrorAndExit "Nao foi possivel identificar a versao do Go apos atualizacao. Saida: $goVersionOutput"
+        }
+        $goVersion = $Matches[1]
+        if (-not (Test-VersionGreaterOrEqual $goVersion $GoMinVersion)) {
+            Write-ErrorAndExit "Go $goVersion instalado, mas esperado >= $GoMinVersion."
+        }
     } else {
         Write-Info "Go $goVersion encontrado."
+    }
+}
+
+function Find-Go {
+    $existing = Get-Command go -ErrorAction SilentlyContinue
+    if ($existing) {
+        return $existing.Source
+    }
+
+    $programFilesGo = Join-Path $env:ProgramFiles "Go\bin\go.exe"
+    if (Test-Path $programFilesGo) {
+        return $programFilesGo
+    }
+
+    $localGo = Join-Path $env:LOCALAPPDATA "Programs\Go\bin\go.exe"
+    if (Test-Path $localGo) {
+        return $localGo
+    }
+
+    return $null
+}
+
+function Install-Go {
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if (-not $winget) {
+        Write-ErrorAndExit "winget nao esta disponivel. Instale Go $GoMinVersion ou superior em https://go.dev/dl/."
+    }
+
+    & winget install --id GoLang.Go --exact --silent --accept-package-agreements --accept-source-agreements
+    $goBin = Join-Path $env:ProgramFiles "Go\bin"
+    if (Test-Path $goBin) {
+        $env:Path = "$env:Path;$goBin"
     }
 }
 
@@ -90,8 +144,8 @@ function Build-Binary {
     Write-Info "Compilando $BinaryName..."
     Push-Location $PSScriptRoot
     try {
-        & go mod download
-        & go build -ldflags="-s -w" -o $ExecutableName .
+        & $script:GoCommand mod download
+        & $script:GoCommand build -ldflags="-s -w" -o $ExecutableName .
     } finally {
         Pop-Location
     }

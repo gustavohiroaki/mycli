@@ -159,6 +159,41 @@ func DetectSimilarGroups(files []EnrichedFile, threshold int) []FileGroup {
 	return groups
 }
 
+func DetectSimilarGroupsAgainstKnown(files []EnrichedFile, known []KnownVisualHash, threshold int) []FileGroup {
+	if threshold < 0 || len(known) == 0 {
+		return nil
+	}
+
+	sort.Slice(known, func(i, j int) bool {
+		return known[i].Path < known[j].Path
+	})
+	groupsByKnownPath := map[string][]EnrichedFile{}
+	for _, file := range files {
+		if file.File.Type != MediaTypePhoto || !file.HasVisualHash {
+			continue
+		}
+		for _, existing := range known {
+			if HammingDistance(file.VisualHash, existing.Hash) <= threshold {
+				groupsByKnownPath[existing.Path] = append(groupsByKnownPath[existing.Path], file)
+				break
+			}
+		}
+	}
+
+	keys := make([]string, 0, len(groupsByKnownPath))
+	for key := range groupsByKnownPath {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	groups := make([]FileGroup, 0, len(keys))
+	for _, key := range keys {
+		groupFiles := groupsByKnownPath[key]
+		sortEnriched(groupFiles)
+		groups = append(groups, makeGroup(GroupSimilar, len(groups)+1, groupFiles))
+	}
+	return groups
+}
+
 func HammingDistance(left uint64, right uint64) int {
 	return bits.OnesCount64(left ^ right)
 }
