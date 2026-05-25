@@ -16,6 +16,9 @@ Organiza fotos e videos por linha de comando, usando scan recursivo por padrao.
 ### `unpack` - Descompactador seguro em lote
 Descompacta arquivos `.zip`, `.tar`, `.tar.gz` e `.tgz`, verifica os arquivos extraidos e apaga cada compactado original somente depois de uma verificacao bem-sucedida.
 
+### `compress` - Compactador de videos
+Compacta videos com FFmpeg usando configuracao focada em preservar qualidade.
+
 ## ✨ Funcionalidades
 
 - 🤖 **Integração com APIs externas** (OpenAI)
@@ -32,6 +35,7 @@ Descompacta arquivos `.zip`, `.tar`, `.tar.gz` e `.tgz`, verifica os arquivos ex
 1. **Go 1.25.0** ou superior instalado
 2. **Chave da API OpenAI** configurada como variável de ambiente para a ferramenta `prompt`
 3. **ExifTool** recomendado para o workflow `photo`, usado para ler data real, camera e lente
+4. **FFmpeg** recomendado para o comando `compress`, usado para compactar e verificar videos
 
 ### Configuração inicial
 
@@ -104,6 +108,9 @@ go run main.go
 
 # Descompactar compactados de uma pasta
 ./mycli unpack ./downloads
+
+# Compactar videos com qualidade equilibrada
+./mycli compress ./videos --recursive --level 35 --dest ./videos-comprimidos
 ```
 
 ### Exemplo de uso - Ferramenta `prompt`
@@ -200,6 +207,24 @@ Veja mais cenários em [docs/photo-examples.md](docs/photo-examples.md).
 ```
 
 O `unpack` apaga cada arquivo compactado automaticamente apenas depois de extrair e verificar aquele arquivo. Use `--keep` para preservar os compactados originais.
+
+### Exemplo de uso - Compactador de videos
+
+```bash
+# Compactar um video mantendo o original
+./mycli compress lembranca.mov
+
+# Compactar uma pasta recursivamente
+./mycli compress ./videos --recursive --dest ./videos-comprimidos
+
+# Compactar um pouco mais
+./mycli compress ./videos --recursive --level 55 --dest ./videos-comprimidos
+
+# Substituir original somente se o resultado for valido e menor
+./mycli compress ./videos --recursive --replace
+```
+
+O nivel vai de `1` a `100`. O default é `35`, escolhido para reduzir tamanho sem forcar perda agressiva de qualidade. O comando processa apenas videos; fotos ficarao para um comando separado.
 
 ## 🛠️ Desenvolvimento
 

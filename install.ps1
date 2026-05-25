@@ -140,6 +140,32 @@ function Install-ExifTool {
     Write-Info "ExifTool instalado: $version"
 }
 
+function Install-FFmpeg {
+    $ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
+    $ffprobe = Get-Command ffprobe -ErrorAction SilentlyContinue
+    if ($ffmpeg -and $ffprobe) {
+        $version = & ffmpeg -version | Select-Object -First 1
+        Write-Info "FFmpeg encontrado: $version"
+        return
+    }
+
+    $winget = Get-Command winget -ErrorAction SilentlyContinue
+    if (-not $winget) {
+        Write-ErrorAndExit "FFmpeg nao encontrado e winget nao esta disponivel. Instale FFmpeg manualmente."
+    }
+
+    Write-Info "FFmpeg nao encontrado. Instalando via winget..."
+    & winget install --id Gyan.FFmpeg --exact --silent --accept-package-agreements --accept-source-agreements
+
+    $installed = Get-Command ffmpeg -ErrorAction SilentlyContinue
+    if (-not $installed) {
+        Write-Warn "FFmpeg instalado, mas pode exigir novo terminal para entrar no PATH."
+        return
+    }
+    $version = & ffmpeg -version | Select-Object -First 1
+    Write-Info "FFmpeg instalado: $version"
+}
+
 function Build-Binary {
     Write-Info "Compilando $BinaryName..."
     Push-Location $PSScriptRoot
@@ -211,6 +237,7 @@ function Main {
 
     Test-Go
     Install-ExifTool
+    Install-FFmpeg
     Build-Binary
     Install-Binary
     Add-ToUserPath

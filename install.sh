@@ -106,6 +106,23 @@ install_exiftool() {
     fi
 }
 
+install_ffmpeg() {
+    if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+        info "FFmpeg encontrado: $(ffmpeg -version | head -1)"
+        return
+    fi
+
+    info "FFmpeg não encontrado. Instalando via apt..."
+    apt-get update -qq
+    apt-get install -y ffmpeg
+
+    if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+        info "FFmpeg instalado: $(ffmpeg -version | head -1)"
+    else
+        error "Instalação do FFmpeg falhou."
+    fi
+}
+
 build() {
     info "Compilando $BINARY_NAME..."
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -145,6 +162,7 @@ main() {
     check_root
     check_go
     install_exiftool
+    install_ffmpeg
     build
     install_binary
     cleanup
