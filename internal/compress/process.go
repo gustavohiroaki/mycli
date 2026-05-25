@@ -1,14 +1,18 @@
 package compress
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type ProgressFunc func(done int, total int, result Result)
+type EncodeProgressFunc func(item Item, percent int)
 
 func ValidateOptions(options Options) error {
 	if options.Level < 1 || options.Level > 100 {
@@ -24,10 +28,14 @@ func ValidateOptions(options Options) error {
 }
 
 func ProcessBatch(items []Item, options Options, progress ProgressFunc) ([]Result, Summary) {
+	return ProcessBatchWithEncodeProgress(items, options, progress, nil)
+}
+
+func ProcessBatchWithEncodeProgress(items []Item, options Options, progress ProgressFunc, encodeProgress EncodeProgressFunc) ([]Result, Summary) {
 	results := make([]Result, 0, len(items))
 	summary := Summary{Found: len(items)}
 	for index, item := range items {
-		result := Process(item, options)
+		result := ProcessWithProgress(item, options, encodeProgress)
 		results = append(results, result)
 		switch result.Status {
 		case StatusOK, StatusReplace:
@@ -48,6 +56,10 @@ func ProcessBatch(items []Item, options Options, progress ProgressFunc) ([]Resul
 }
 
 func Process(item Item, options Options) Result {
+	return ProcessWithProgress(item, options, nil)
+}
+
+func ProcessWithProgress(item Item, options Options, encodeProgress EncodeProgressFunc) Result {
 	finalPath := item.DestPath
 	if options.Replace {
 		finalPath = replaceExt(item.SourcePath, ".mp4")
@@ -64,9 +76,10 @@ func Process(item Item, options Options) Result {
 	tempPath := finalPath + ".tmp.mp4"
 	_ = os.Remove(tempPath)
 	args := ffmpegArgs(item.SourcePath, tempPath, options.Level)
-	if output, err := exec.Command("ffmpeg", args...).CombinedOutput(); err != nil {
+	durationMS, _ := videoDurationMS(item.SourcePath)
+	if output, err := runFFmpegWithProgress(item, args, durationMS, encodeProgress); err != nil {
 		_ = os.Remove(tempPath)
-		return Result{Item: item, Status: StatusFail, InputSize: item.Size, Error: string(output)}
+		return Result{Item: item, Status: StatusFail, InputSize: item.Size, Error: output}
 	}
 	if err := verifyVideo(tempPath); err != nil {
 		_ = os.Remove(tempPath)
@@ -116,6 +129,8 @@ func ffmpegArgs(input string, output string, level int) []string {
 		"-b:a", "160k",
 		"-c:s", "copy",
 		"-movflags", "+faststart",
+		"-progress", "pipe:1",
+		"-nostats",
 		output,
 	}
 }
@@ -126,4 +141,68 @@ func crfFromLevel(level int) int {
 
 func verifyVideo(path string) error {
 	return exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_type", "-of", "csv=p=0", path).Run()
+}
+
+func videoDurationMS(path string) (int64, error) {
+	output, err := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path).Output()
+	if err != nil {
+		return 0, err
+	}
+	value := strings.TrimSpace(string(output))
+	if value == "" || value == "N/A" {
+		return 0, fmt.Errorf("duration not available")
+	}
+	seconds, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, err
+	}
+	return int64(seconds * 1000), nil
+}
+
+func runFFmpegWithProgress(item Item, args []string, durationMS int64, progress EncodeProgressFunc) (string, error) {
+	cmd := exec.Command("ffmpeg", args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return stderr.String(), err
+	}
+
+	lastPercent := -1
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "out_time_ms=") || durationMS <= 0 || progress == nil {
+			continue
+		}
+		outTimeUS, err := strconv.ParseInt(strings.TrimPrefix(line, "out_time_ms="), 10, 64)
+		if err != nil {
+			continue
+		}
+		percent := int((outTimeUS / 1000) * 100 / durationMS)
+		if percent < 0 {
+			percent = 0
+		}
+		if percent > 100 {
+			percent = 100
+		}
+		if percent != lastPercent {
+			progress(item, percent)
+			lastPercent = percent
+		}
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		_ = cmd.Wait()
+		return stderr.String(), scanErr
+	}
+	if err := cmd.Wait(); err != nil {
+		return stderr.String(), err
+	}
+	if progress != nil && lastPercent < 100 {
+		progress(item, 100)
+	}
+	return stderr.String(), nil
 }

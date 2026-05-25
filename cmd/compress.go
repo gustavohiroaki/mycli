@@ -24,7 +24,8 @@ var compressCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		results, summary := compress.ProcessBatch(items, options, printCompressProgress)
+		fmt.Printf("Videos found: %d, skipped unsupported: %d\n", len(items), skipped)
+		results, summary := compress.ProcessBatchWithEncodeProgress(items, options, printCompressProgress, printCompressEncodeProgress)
 		for _, result := range results {
 			printCompressResult(result)
 		}
@@ -44,6 +45,10 @@ func init() {
 
 func printCompressProgress(done int, total int, result compress.Result) {
 	fmt.Printf("Progress: %d/%d (%d%%) %s %s\n", done, total, progressPercent(done, total), result.Status, result.Item.SourcePath)
+}
+
+func printCompressEncodeProgress(item compress.Item, percent int) {
+	fmt.Printf("Encoding: %d%% %s\n", percent, item.SourcePath)
 }
 
 func printCompressResult(result compress.Result) {
