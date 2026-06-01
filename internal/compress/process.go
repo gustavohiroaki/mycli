@@ -29,6 +29,9 @@ func ValidateOptions(options Options) error {
 	if _, err := exec.LookPath("ffprobe"); err != nil {
 		return fmt.Errorf("ffprobe not found; install ffmpeg first")
 	}
+	if options.GPU && !gpuEncoderAvailable() {
+		return fmt.Errorf("hevc_amf encoder not available; install an ffmpeg build with AMF support (https://ffmpeg.org/download.html)")
+	}
 	return nil
 }
 
@@ -141,7 +144,7 @@ func ProcessWithProgress(item Item, options Options, encodeProgress EncodeProgre
 
 	tempPath := finalPath + ".tmp.mp4"
 	_ = os.Remove(tempPath)
-	args := ffmpegArgs(item.SourcePath, tempPath, options.Level)
+	args := ffmpegArgs(item.SourcePath, tempPath, options)
 	durationMS, _ := videoDurationMS(item.SourcePath)
 	if output, err := runFFmpegWithProgress(item, args, durationMS, encodeProgress); err != nil {
 		_ = os.Remove(tempPath)
@@ -179,7 +182,14 @@ func ProcessWithProgress(item Item, options Options, encodeProgress EncodeProgre
 	return Result{Item: item, Status: StatusOK, InputSize: item.Size, OutputSize: info.Size()}
 }
 
-func ffmpegArgs(input string, output string, level int) []string {
+func ffmpegArgs(input string, output string, options Options) []string {
+	if options.GPU {
+		return ffmpegArgsAMF(input, output, options.Level)
+	}
+	return ffmpegArgsCPU(input, output, options.Level)
+}
+
+func ffmpegArgsCPU(input string, output string, level int) []string {
 	crf := crfFromLevel(level)
 	return []string{
 		"-hide_banner",
@@ -199,6 +209,38 @@ func ffmpegArgs(input string, output string, level int) []string {
 		"-nostats",
 		output,
 	}
+}
+
+func ffmpegArgsAMF(input string, output string, level int) []string {
+	qp := crfFromLevel(level)
+	return []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-y",
+		"-i", input,
+		"-map", "0",
+		"-c:v", "hevc_amf",
+		"-rc", "cqp",
+		"-qp_i", strconv.Itoa(qp),
+		"-qp_p", strconv.Itoa(qp),
+		"-quality", "quality",
+		"-tag:v", "hvc1",
+		"-c:a", "aac",
+		"-b:a", "160k",
+		"-c:s", "copy",
+		"-movflags", "+faststart",
+		"-progress", "pipe:1",
+		"-nostats",
+		output,
+	}
+}
+
+func gpuEncoderAvailable() bool {
+	out, err := exec.Command("ffmpeg", "-hide_banner", "-encoders").Output()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(out), "hevc_amf")
 }
 
 func workerCount(options Options, itemCount int) int {

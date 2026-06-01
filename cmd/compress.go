@@ -43,6 +43,7 @@ func init() {
 	compressCmd.Flags().BoolVar(&compressOptions.Overwrite, "overwrite", false, "Overwrite existing output files")
 	compressCmd.Flags().IntVar(&compressOptions.Workers, "workers", 0, "Parallel ffmpeg processes; default is 1, or CPU-aware with --fullperformance")
 	compressCmd.Flags().BoolVar(&compressOptions.FullPerformance, "fullperformance", false, "Use multiple parallel ffmpeg processes")
+	compressCmd.Flags().BoolVar(&compressOptions.GPU, "gpu", false, "Use AMD GPU hardware encoder (hevc_amf) via ffmpeg")
 }
 
 func printCompressProgress(done int, total int, result compress.Result) {

@@ -9,6 +9,7 @@ type Options struct {
 	Overwrite       bool
 	Workers         int
 	FullPerformance bool
+	GPU             bool
 }
 
 type Item struct {
