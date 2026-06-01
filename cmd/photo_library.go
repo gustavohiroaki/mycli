@@ -102,6 +102,50 @@ var photoLibraryUseCmd = &cobra.Command{
 	},
 }
 
+var photoLibraryUpdateCmd = &cobra.Command{
+	Use:   "update <name-or-path> <new-path>",
+	Short: "Update the path of a saved photo library",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dbPath, err := photo.DefaultGlobalDBPath()
+		if err != nil {
+			return err
+		}
+		library, err := photo.FindGlobalLibrary(dbPath, args[0])
+		if err != nil {
+			return err
+		}
+		newPath, err := filepath.Abs(args[1])
+		if err != nil {
+			return err
+		}
+		if library.Path == newPath {
+			fmt.Printf("Photo library path unchanged: %s -> %s\n", library.Name, newPath)
+			return nil
+		}
+
+		config, err := photo.LoadLibraryConfig(newPath)
+		if err != nil {
+			return fmt.Errorf("new path does not contain a valid photo library: %w", err)
+		}
+		config.Destination = newPath
+		if err := photo.SaveLibraryConfig(newPath, config); err != nil {
+			return err
+		}
+		if err := photo.InitLocalLibrary(newPath); err != nil {
+			return err
+		}
+
+		if err := photo.SaveGlobalLibrary(dbPath, photo.Library{Name: library.Name, Path: newPath, IsDefault: library.IsDefault}); err != nil {
+			return err
+		}
+		fmt.Printf("Photo library path updated: %s\n", library.Name)
+		fmt.Printf("Old path: %s\n", library.Path)
+		fmt.Printf("New path: %s\n", newPath)
+		return nil
+	},
+}
+
 var photoImportCmd = &cobra.Command{
 	Use:   "import <source>",
 	Short: "Import media into the default photo library",
@@ -114,7 +158,7 @@ var photoImportCmd = &cobra.Command{
 func init() {
 	photoCmd.AddCommand(photoLibraryCmd)
 	photoCmd.AddCommand(photoImportCmd)
-	photoLibraryCmd.AddCommand(photoLibraryInitCmd, photoLibraryListCmd, photoLibraryUseCmd)
+	photoLibraryCmd.AddCommand(photoLibraryInitCmd, photoLibraryListCmd, photoLibraryUseCmd, photoLibraryUpdateCmd)
 
 	photoLibraryInitCmd.Flags().StringVar(&photoLibraryName, "name", "", "Library name")
 	photoLibraryInitCmd.Flags().BoolVar(&photoLibraryMakeDefault, "default", true, "Set as default photo library")

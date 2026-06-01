@@ -179,6 +179,9 @@ Use `--fullperformance` para executar leitura de metadados, hashes e copia/movim
 # Trocar biblioteca padrao
 ./mycli photo library use principal
 
+# Atualizar path salvo de uma biblioteca
+./mycli photo library update principal ./biblioteca-nova
+
 # Importar novas fotos usando a config salva da biblioteca padrao
 ./mycli photo import ./cartao/DCIM
 ```

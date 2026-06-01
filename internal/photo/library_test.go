@@ -29,6 +29,28 @@ func TestGlobalLibraryStoreSavesListsAndSetsDefault(t *testing.T) {
 	}
 }
 
+func TestGlobalLibraryStoreUpdatesPathOnSave(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "mycli.db")
+
+	if err := SaveGlobalLibrary(dbPath, Library{Name: "main", Path: "/photos/old", IsDefault: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveGlobalLibrary(dbPath, Library{Name: "main", Path: "/photos/new", IsDefault: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := FindGlobalLibrary(dbPath, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Path != "/photos/new" {
+		t.Fatalf("path = %q, want /photos/new", got.Path)
+	}
+	if !got.IsDefault {
+		t.Fatalf("default = %v, want true", got.IsDefault)
+	}
+}
+
 func TestLibraryConfigAndIndexRoundTrip(t *testing.T) {
 	root := t.TempDir()
 	config := ConfigFromOptions(Options{
